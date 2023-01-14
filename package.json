@@ -1,0 +1,16 @@
+{
+  "name": "incident-tracker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A small-team incident tracker with a status page",
+  "type": "module",
+  "license": "MIT",
+  "author": "Avery Lane",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node --test"
+  }
+}
