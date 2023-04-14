@@ -44,7 +44,7 @@ export function createRouter() {
       if (route.method === method) return { handler: route.handler, params };
       allowed.push(route.method);
     }
-    return allowed.length > 0 ? { allowed } : null;
+    return allowed.length > 0 ? { allowed: [...new Set(allowed)].sort() } : null;
   }
 
   return {
