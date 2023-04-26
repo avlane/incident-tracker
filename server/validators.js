@@ -1,4 +1,4 @@
-import { IMPACTS, SEVERITIES } from './incidents.js';
+import { IMPACTS, SEVERITIES, STATUSES } from './incidents.js';
 
 // Validators return { value, errors }. `value` is the cleaned input and is
 // only meaningful when `errors` is empty.
@@ -65,6 +65,26 @@ export function validateIncidentInput(input) {
     value.severity = input.severity;
   }
   value.affected = affectedList(input, errors);
+  for (const key of Object.keys(value)) if (value[key] === undefined) delete value[key];
+  return { value, errors };
+}
+
+export function validateUpdateInput(input) {
+  const errors = [];
+  if (input === null || typeof input !== 'object' || Array.isArray(input)) {
+    return { value: null, errors: [{ field: '', message: 'body must be an object' }] };
+  }
+  const value = {};
+  value.message = text(input, 'message', { required: true, max: 2000 }, errors);
+  value.author = text(input, 'author', { max: 80 }, errors);
+  if (input.status !== undefined) {
+    if (STATUSES.includes(input.status)) value.status = input.status;
+    else errors.push({ field: 'status', message: `status must be one of ${STATUSES.join(', ')}` });
+  }
+  if (input.severity !== undefined) {
+    if (SEVERITIES.includes(input.severity)) value.severity = input.severity;
+    else errors.push({ field: 'severity', message: `severity must be one of ${SEVERITIES.join(', ')}` });
+  }
   for (const key of Object.keys(value)) if (value[key] === undefined) delete value[key];
   return { value, errors };
 }

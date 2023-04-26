@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createIncident, formatIncidentId, isOpen } from '../server/incidents.js';
-import { validateIncidentInput } from '../server/validators.js';
+import { createIncident, formatIncidentId, incidentReducer, isOpen } from '../server/incidents.js';
+import { validateIncidentInput, validateUpdateInput } from '../server/validators.js';
 
 test('formatIncidentId pads to four digits', () => {
   assert.equal(formatIncidentId(7), 'INC-0007');
@@ -37,4 +37,63 @@ test('validateIncidentInput rejects non-objects and over-long titles', () => {
   assert.equal(validateIncidentInput([]).errors.length, 1);
   const long = validateIncidentInput({ title: 'x'.repeat(141), severity: 'sev3' });
   assert.equal(long.errors[0].field, 'title');
+});
+
+const open = () =>
+  createIncident(
+    { title: 'DB failover', summary: 'Primary unreachable', severity: 'sev2' },
+    { id: 'INC-0001', now: '2023-04-01T09:00:00.000Z' },
+  );
+
+test('createIncident seeds the timeline with an opening entry', () => {
+  const inc = open();
+  assert.equal(inc.updates.length, 1);
+  assert.equal(inc.updates[0].kind, 'opened');
+  assert.equal(inc.updates[0].message, 'Primary unreachable');
+});
+
+test('post_update appends to the timeline without mutating the input', () => {
+  const before = open();
+  const after = incidentReducer(before, {
+    type: 'post_update',
+    at: '2023-04-01T09:20:00.000Z',
+    author: 'sam',
+    message: 'Replica promoted',
+    status: 'identified',
+  });
+  assert.equal(before.updates.length, 1);
+  assert.equal(before.status, 'investigating');
+  assert.equal(after.status, 'identified');
+  assert.equal(after.updatedAt, '2023-04-01T09:20:00.000Z');
+  assert.deepEqual(after.updates.map((u) => u.id), [1, 2]);
+  assert.equal(after.updates[1].severity, 'sev2');
+});
+
+test('resolving sets resolvedAt once and reopening clears it', () => {
+  let inc = open();
+  inc = incidentReducer(inc, { type: 'post_update', at: '2023-04-01T10:00:00.000Z', message: 'Fixed', status: 'resolved' });
+  assert.equal(inc.resolvedAt, '2023-04-01T10:00:00.000Z');
+  inc = incidentReducer(inc, { type: 'post_update', at: '2023-04-01T10:30:00.000Z', message: 'Still resolved' });
+  assert.equal(inc.resolvedAt, '2023-04-01T10:00:00.000Z');
+  inc = incidentReducer(inc, { type: 'post_update', at: '2023-04-01T11:00:00.000Z', message: 'Back again', status: 'investigating' });
+  assert.equal(inc.resolvedAt, null);
+});
+
+test('severity can change in an update', () => {
+  const inc = incidentReducer(open(), { type: 'post_update', at: '2023-04-01T09:05:00.000Z', message: 'Wider than thought', severity: 'sev1' });
+  assert.equal(inc.severity, 'sev1');
+});
+
+test('assign changes the commander and unknown actions throw', () => {
+  const inc = incidentReducer(open(), { type: 'assign', at: '2023-04-01T09:01:00.000Z', commander: 'priya' });
+  assert.equal(inc.commander, 'priya');
+  assert.throws(() => incidentReducer(inc, { type: 'explode' }), /unknown incident action/);
+});
+
+test('validateUpdateInput needs a message and checks enums', () => {
+  assert.equal(validateUpdateInput({}).errors[0].field, 'message');
+  const bad = validateUpdateInput({ message: 'x', status: 'done', severity: 'sev9' });
+  assert.deepEqual(bad.errors.map((e) => e.field), ['status', 'severity']);
+  const ok = validateUpdateInput({ message: ' ok ', status: 'monitoring' });
+  assert.deepEqual(ok.value, { message: 'ok', status: 'monitoring' });
 });
