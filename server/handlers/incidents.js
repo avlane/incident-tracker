@@ -1,6 +1,6 @@
 import { notFound, unprocessable } from '../errors.js';
-import { createIncident, formatIncidentId } from '../incidents.js';
-import { validateIncidentInput } from '../validators.js';
+import { createIncident, formatIncidentId, incidentReducer } from '../incidents.js';
+import { validateIncidentInput, validateUpdateInput } from '../validators.js';
 
 export function registerIncidentRoutes(router, { store, clock }) {
   function load(id) {
@@ -27,5 +27,14 @@ export function registerIncidentRoutes(router, { store, clock }) {
 
   router.get('/api/incidents/:id', async ({ params }) => {
     return { body: { incident: load(params.id) } };
+  });
+
+  router.post('/api/incidents/:id/updates', async (ctx) => {
+    const incident = load(ctx.params.id);
+    const { value, errors } = validateUpdateInput(await ctx.readBody());
+    if (errors.length > 0) throw unprocessable(errors);
+    const next = incidentReducer(incident, { type: 'post_update', at: clock(), ...value });
+    store.put('incidents', next);
+    return { status: 201, body: { incident: next } };
   });
 }

@@ -60,3 +60,32 @@ test('malformed JSON is a 400', async (t) => {
   });
   assert.equal(res.status, 400);
 });
+
+test('posting updates moves the incident through its timeline', async (t) => {
+  const srv = await startTestServer();
+  t.after(() => srv.close());
+  await srv.api('POST', '/api/incidents', { title: 'Search is down', summary: 'No results', severity: 'sev2' });
+
+  const identified = await srv.api('POST', '/api/incidents/INC-0001/updates', {
+    message: 'Index node out of disk',
+    status: 'identified',
+    author: 'sam',
+  });
+  assert.equal(identified.status, 201);
+  assert.equal(identified.json.incident.status, 'identified');
+
+  const resolved = await srv.api('POST', '/api/incidents/INC-0001/updates', { message: 'Disk expanded', status: 'resolved' });
+  assert.equal(resolved.json.incident.resolvedAt, resolved.json.incident.updatedAt);
+  assert.equal(resolved.json.incident.updates.length, 3);
+
+  const fetched = await srv.api('GET', '/api/incidents/INC-0001');
+  assert.deepEqual(fetched.json.incident.updates.map((u) => u.kind), ['opened', 'update', 'update']);
+});
+
+test('updates need a message and an existing incident', async (t) => {
+  const srv = await startTestServer();
+  t.after(() => srv.close());
+  await srv.api('POST', '/api/incidents', { title: 'x', severity: 'sev3' });
+  assert.equal((await srv.api('POST', '/api/incidents/INC-0001/updates', { status: 'resolved' })).status, 422);
+  assert.equal((await srv.api('POST', '/api/incidents/INC-0042/updates', { message: 'hi' })).status, 404);
+});
