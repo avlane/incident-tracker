@@ -10,3 +10,4 @@ export class HttpError extends Error {
 export const badRequest = (message, details) => new HttpError(400, message, details);
 export const notFound = (message = 'not found') => new HttpError(404, message);
 export const unprocessable = (errors) => new HttpError(422, 'validation failed', errors);
+export const conflict = (message) => new HttpError(409, message);

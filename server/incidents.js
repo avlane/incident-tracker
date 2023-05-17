@@ -13,6 +13,15 @@ export function isOpen(incident) {
   return incident.status !== 'resolved';
 }
 
+// A resolved incident can only be reopened (back to investigating); it can't
+// jump straight to identified or monitoring. Staying in the same status is
+// always fine, so a plain update doesn't need to repeat the status.
+export function canTransition(from, to) {
+  if (from === to) return true;
+  if (from === 'resolved') return to === 'investigating';
+  return STATUSES.includes(to);
+}
+
 export function createIncident(input, { id, now }) {
   return {
     id,

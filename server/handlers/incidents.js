@@ -1,5 +1,5 @@
-import { notFound, unprocessable } from '../errors.js';
-import { createIncident, formatIncidentId, incidentReducer } from '../incidents.js';
+import { conflict, notFound, unprocessable } from '../errors.js';
+import { canTransition, createIncident, formatIncidentId, incidentReducer } from '../incidents.js';
 import { validateIncidentInput, validateUpdateInput } from '../validators.js';
 
 export function registerIncidentRoutes(router, { store, clock }) {
@@ -33,6 +33,9 @@ export function registerIncidentRoutes(router, { store, clock }) {
     const incident = load(ctx.params.id);
     const { value, errors } = validateUpdateInput(await ctx.readBody());
     if (errors.length > 0) throw unprocessable(errors);
+    if (value.status && !canTransition(incident.status, value.status)) {
+      throw conflict(`cannot move from ${incident.status} to ${value.status}; reopen it with investigating first`);
+    }
     const next = incidentReducer(incident, { type: 'post_update', at: clock(), ...value });
     store.put('incidents', next);
     return { status: 201, body: { incident: next } };

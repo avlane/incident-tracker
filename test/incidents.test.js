@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createIncident, formatIncidentId, incidentReducer, isOpen } from '../server/incidents.js';
+import { canTransition, createIncident, formatIncidentId, incidentReducer, isOpen } from '../server/incidents.js';
 import { validateIncidentInput, validateUpdateInput } from '../server/validators.js';
 
 test('formatIncidentId pads to four digits', () => {
@@ -96,4 +96,13 @@ test('validateUpdateInput needs a message and checks enums', () => {
   assert.deepEqual(bad.errors.map((e) => e.field), ['status', 'severity']);
   const ok = validateUpdateInput({ message: ' ok ', status: 'monitoring' });
   assert.deepEqual(ok.value, { message: 'ok', status: 'monitoring' });
+});
+
+test('canTransition lets a resolved incident reopen only to investigating', () => {
+  assert.equal(canTransition('investigating', 'monitoring'), true);
+  assert.equal(canTransition('monitoring', 'identified'), true);
+  assert.equal(canTransition('resolved', 'resolved'), true);
+  assert.equal(canTransition('resolved', 'investigating'), true);
+  assert.equal(canTransition('resolved', 'monitoring'), false);
+  assert.equal(canTransition('resolved', 'identified'), false);
 });

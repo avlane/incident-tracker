@@ -89,3 +89,17 @@ test('updates need a message and an existing incident', async (t) => {
   assert.equal((await srv.api('POST', '/api/incidents/INC-0001/updates', { status: 'resolved' })).status, 422);
   assert.equal((await srv.api('POST', '/api/incidents/INC-0042/updates', { message: 'hi' })).status, 404);
 });
+
+test('a resolved incident can only be reopened to investigating', async (t) => {
+  const srv = await startTestServer();
+  t.after(() => srv.close());
+  await srv.api('POST', '/api/incidents', { title: 'x', severity: 'sev3' });
+  await srv.api('POST', '/api/incidents/INC-0001/updates', { message: 'done', status: 'resolved' });
+
+  const bad = await srv.api('POST', '/api/incidents/INC-0001/updates', { message: 'hmm', status: 'monitoring' });
+  assert.equal(bad.status, 409);
+
+  const reopened = await srv.api('POST', '/api/incidents/INC-0001/updates', { message: 'came back', status: 'investigating' });
+  assert.equal(reopened.status, 201);
+  assert.equal(reopened.json.incident.resolvedAt, null);
+});
