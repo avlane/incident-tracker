@@ -88,3 +88,24 @@ export function validateUpdateInput(input) {
   for (const key of Object.keys(value)) if (value[key] === undefined) delete value[key];
   return { value, errors };
 }
+
+export function validateServiceInput(input, { partial = false } = {}) {
+  const errors = [];
+  if (input === null || typeof input !== 'object' || Array.isArray(input)) {
+    return { value: null, errors: [{ field: '', message: 'body must be an object' }] };
+  }
+  const value = {};
+  value.name = text(input, 'name', { required: !partial, max: 80 }, errors);
+  value.description = text(input, 'description', { max: 300 }, errors);
+  if (input.components !== undefined) {
+    const list = input.components;
+    const ok =
+      Array.isArray(list) &&
+      list.length <= 30 &&
+      list.every((c) => typeof c === 'string' && c.trim() !== '' && c.trim().length <= 80);
+    if (ok) value.components = list.map((c) => c.trim());
+    else errors.push({ field: 'components', message: 'components must be a list of up to 30 names' });
+  }
+  for (const key of Object.keys(value)) if (value[key] === undefined) delete value[key];
+  return { value, errors };
+}

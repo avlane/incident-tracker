@@ -2,8 +2,9 @@ import { HttpError } from './errors.js';
 import { readJson, sendJson, sendText } from './http.js';
 import { createRouter } from './router.js';
 import { registerIncidentRoutes } from './handlers/incidents.js';
+import { registerServiceRoutes } from './handlers/services.js';
 
-const modules = [registerIncidentRoutes];
+const modules = [registerIncidentRoutes, registerServiceRoutes];
 
 export function createApp({ store, clock = () => new Date().toISOString(), logger = console } = {}) {
   const router = createRouter();
