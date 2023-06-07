@@ -103,3 +103,45 @@ test('a resolved incident can only be reopened to investigating', async (t) => {
   assert.equal(reopened.status, 201);
   assert.equal(reopened.json.incident.resolvedAt, null);
 });
+
+test('affected services and components must exist', async (t) => {
+  const srv = await startTestServer();
+  t.after(() => srv.close());
+  await srv.api('POST', '/api/services', { name: 'Checkout', components: ['API', 'Database'] });
+
+  const ghost = await srv.api('POST', '/api/incidents', {
+    title: 'x',
+    severity: 'sev3',
+    affected: [{ serviceId: 'nope', impact: 'degraded' }],
+  });
+  assert.equal(ghost.status, 422);
+
+  const badComponent = await srv.api('POST', '/api/incidents', {
+    title: 'x',
+    severity: 'sev3',
+    affected: [{ serviceId: 'checkout', componentId: 'queue', impact: 'degraded' }],
+  });
+  assert.equal(badComponent.status, 422);
+
+  const ok = await srv.api('POST', '/api/incidents', {
+    title: 'Card payments failing',
+    severity: 'sev1',
+    affected: [{ serviceId: 'checkout', componentId: 'api', impact: 'major_outage' }],
+  });
+  assert.equal(ok.status, 201);
+  assert.equal(ok.json.incident.affected[0].componentId, 'api');
+});
+
+test('a service with an open incident cannot be deleted', async (t) => {
+  const srv = await startTestServer();
+  t.after(() => srv.close());
+  await srv.api('POST', '/api/services', { name: 'Checkout' });
+  await srv.api('POST', '/api/incidents', {
+    title: 'x',
+    severity: 'sev2',
+    affected: [{ serviceId: 'checkout', impact: 'degraded' }],
+  });
+  assert.equal((await srv.api('DELETE', '/api/services/checkout')).status, 409);
+  await srv.api('POST', '/api/incidents/INC-0001/updates', { message: 'ok now', status: 'resolved' });
+  assert.equal((await srv.api('DELETE', '/api/services/checkout')).status, 204);
+});

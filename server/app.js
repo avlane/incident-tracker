@@ -35,7 +35,10 @@ export function createApp({ store, clock = () => new Date().toISOString(), logge
     };
     const result = (await found.handler(ctx)) ?? {};
     const status = result.status ?? 200;
-    if (result.text !== undefined) {
+    if (status === 204) {
+      res.writeHead(204, result.headers);
+      res.end();
+    } else if (result.text !== undefined) {
       sendText(res, status, result.text, result.contentType, result.headers);
     } else {
       sendJson(res, status, result.body ?? {}, result.headers);

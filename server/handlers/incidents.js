@@ -9,9 +9,24 @@ export function registerIncidentRoutes(router, { store, clock }) {
     return incident;
   }
 
+  // Every affected entry must point at a real service (and component, if given).
+  function checkAffected(affected = []) {
+    const errors = [];
+    affected.forEach((entry, i) => {
+      const service = store.get('services', entry.serviceId);
+      if (!service) {
+        errors.push({ field: `affected[${i}]`, message: `unknown service ${entry.serviceId}` });
+      } else if (entry.componentId && !service.components.some((c) => c.id === entry.componentId)) {
+        errors.push({ field: `affected[${i}]`, message: `${service.id} has no component ${entry.componentId}` });
+      }
+    });
+    if (errors.length > 0) throw unprocessable(errors);
+  }
+
   router.post('/api/incidents', async (ctx) => {
     const { value, errors } = validateIncidentInput(await ctx.readBody());
     if (errors.length > 0) throw unprocessable(errors);
+    checkAffected(value.affected);
     const id = formatIncidentId(store.nextSeq('incident'));
     const incident = createIncident(value, { id, now: clock() });
     store.put('incidents', incident);

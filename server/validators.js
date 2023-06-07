@@ -45,7 +45,9 @@ function affectedList(input, errors) {
       });
       return;
     }
-    out.push({ serviceId: entry.serviceId, impact: entry.impact });
+    const item = { serviceId: entry.serviceId, impact: entry.impact };
+    if (typeof entry.componentId === 'string' && entry.componentId !== '') item.componentId = entry.componentId;
+    out.push(item);
   });
   return out;
 }
