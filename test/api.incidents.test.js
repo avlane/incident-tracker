@@ -145,3 +145,22 @@ test('a service with an open incident cannot be deleted', async (t) => {
   await srv.api('POST', '/api/incidents/INC-0001/updates', { message: 'ok now', status: 'resolved' });
   assert.equal((await srv.api('DELETE', '/api/services/checkout')).status, 204);
 });
+
+test('GET /api/incidents applies filters and rejects bad ones', async (t) => {
+  const srv = await startTestServer();
+  t.after(() => srv.close());
+  await srv.api('POST', '/api/incidents', { title: 'Checkout latency', severity: 'sev2' });
+  await srv.api('POST', '/api/incidents', { title: 'Email delays', severity: 'sev4' });
+  await srv.api('POST', '/api/incidents/INC-0002/updates', { message: 'drained', status: 'resolved' });
+
+  const open = await srv.api('GET', '/api/incidents?open=true');
+  assert.deepEqual(open.json.incidents.map((i) => i.id), ['INC-0001']);
+  assert.equal(open.json.total, 1);
+
+  const search = await srv.api('GET', '/api/incidents?q=email&severity=sev4');
+  assert.deepEqual(search.json.incidents.map((i) => i.id), ['INC-0002']);
+
+  const bad = await srv.api('GET', '/api/incidents?severity=bogus');
+  assert.equal(bad.status, 400);
+  assert.equal(bad.json.error.details[0].field, 'severity');
+});

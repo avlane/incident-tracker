@@ -1,5 +1,6 @@
-import { conflict, notFound, unprocessable } from '../errors.js';
+import { badRequest, conflict, notFound, unprocessable } from '../errors.js';
 import { canTransition, createIncident, formatIncidentId, incidentReducer } from '../incidents.js';
+import { filterIncidents, parseFilters } from '../search.js';
 import { validateIncidentInput, validateUpdateInput } from '../validators.js';
 
 export function registerIncidentRoutes(router, { store, clock }) {
@@ -33,11 +34,11 @@ export function registerIncidentRoutes(router, { store, clock }) {
     return { status: 201, body: { incident } };
   });
 
-  router.get('/api/incidents', async () => {
-    const incidents = store
-      .list('incidents')
-      .sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
-    return { body: { incidents, total: incidents.length } };
+  router.get('/api/incidents', async ({ query }) => {
+    const { filters, errors } = parseFilters(query);
+    if (errors.length > 0) throw badRequest('invalid query', errors);
+    const { items, total } = filterIncidents(store.list('incidents'), filters);
+    return { body: { incidents: items, total, limit: filters.limit, offset: filters.offset } };
   });
 
   router.get('/api/incidents/:id', async ({ params }) => {
