@@ -111,3 +111,58 @@ export function validateServiceInput(input, { partial = false } = {}) {
   for (const key of Object.keys(value)) if (value[key] === undefined) delete value[key];
   return { value, errors };
 }
+
+function isoDate(value) {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value) && !Number.isNaN(Date.parse(value));
+}
+
+export function validateScheduleInput(input) {
+  const errors = [];
+  if (input === null || typeof input !== 'object' || Array.isArray(input)) {
+    return { value: null, errors: [{ field: '', message: 'body must be an object' }] };
+  }
+  const value = {};
+  value.name = text(input, 'name', { required: true, max: 80 }, errors);
+  const members = input.members;
+  if (
+    Array.isArray(members) &&
+    members.length >= 1 &&
+    members.length <= 20 &&
+    members.every((m) => typeof m === 'string' && m.trim() !== '' && m.trim().length <= 80)
+  ) {
+    value.members = members.map((m) => m.trim());
+    if (new Set(value.members).size !== value.members.length) {
+      errors.push({ field: 'members', message: 'members must be unique' });
+    }
+  } else {
+    errors.push({ field: 'members', message: 'members must be a list of 1 to 20 names' });
+  }
+  if (isoDate(input.startsAt)) value.startsAt = new Date(input.startsAt).toISOString();
+  else errors.push({ field: 'startsAt', message: 'startsAt must be an ISO date-time' });
+  if (input.rotationHours !== undefined) {
+    if (Number.isInteger(input.rotationHours) && input.rotationHours >= 1 && input.rotationHours <= 24 * 30) {
+      value.rotationHours = input.rotationHours;
+    } else {
+      errors.push({ field: 'rotationHours', message: 'rotationHours must be a whole number from 1 to 720' });
+    }
+  }
+  for (const key of Object.keys(value)) if (value[key] === undefined) delete value[key];
+  return { value, errors };
+}
+
+export function validateOverrideInput(input) {
+  const errors = [];
+  if (input === null || typeof input !== 'object' || Array.isArray(input)) {
+    return { value: null, errors: [{ field: '', message: 'body must be an object' }] };
+  }
+  const value = {};
+  value.who = text(input, 'who', { required: true, max: 80 }, errors);
+  if (isoDate(input.from)) value.from = new Date(input.from).toISOString();
+  else errors.push({ field: 'from', message: 'from must be an ISO date-time' });
+  if (isoDate(input.to)) value.to = new Date(input.to).toISOString();
+  else errors.push({ field: 'to', message: 'to must be an ISO date-time' });
+  if (value.from && value.to && Date.parse(value.to) <= Date.parse(value.from)) {
+    errors.push({ field: 'to', message: 'to must be after from' });
+  }
+  return { value, errors };
+}
