@@ -1,5 +1,6 @@
 import { badRequest, conflict, notFound, unprocessable } from '../errors.js';
 import { canTransition, createIncident, formatIncidentId, incidentReducer } from '../incidents.js';
+import { whoIsOnCall } from '../oncall.js';
 import { filterIncidents, parseFilters } from '../search.js';
 import { validateIncidentInput, validateUpdateInput } from '../validators.js';
 
@@ -29,7 +30,13 @@ export function registerIncidentRoutes(router, { store, clock }) {
     if (errors.length > 0) throw unprocessable(errors);
     checkAffected(value.affected);
     const id = formatIncidentId(store.nextSeq('incident'));
-    const incident = createIncident(value, { id, now: clock() });
+    const now = clock();
+    if (!value.commander) {
+      const first = store.list('oncall').sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1))[0];
+      const current = first ? whoIsOnCall(first, now) : null;
+      if (current) value.commander = current.who;
+    }
+    const incident = createIncident(value, { id, now });
     store.put('incidents', incident);
     return { status: 201, body: { incident } };
   });
