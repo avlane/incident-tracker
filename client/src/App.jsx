@@ -4,6 +4,7 @@ import { filtersReducer, initialFilters } from './lib/filters.js';
 import { parseHash } from './lib/route.js';
 import FilterBar from './components/FilterBar.jsx';
 import IncidentForm from './components/IncidentForm.jsx';
+import IncidentDetail from './components/IncidentDetail.jsx';
 import IncidentList from './components/IncidentList.jsx';
 
 function useHashRoute() {
@@ -64,6 +65,7 @@ export default function App() {
           <IncidentList incidents={data.incidents} total={data.total} />
         </>
       )}
+      {route.name === 'incident' && <IncidentDetail api={api} id={route.id} />}
       {route.name === 'not-found' && <p>That page does not exist. <a href="#/">Back to incidents</a></p>}
     </main>
   );
