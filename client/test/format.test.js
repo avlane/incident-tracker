@@ -14,6 +14,7 @@ test('relativeTime', () => {
   assert.equal(relativeTime('2023-08-30T11:59:50Z', now), 'just now');
   assert.equal(relativeTime('2023-08-30T11:15:00Z', now), '45m ago');
   assert.equal(relativeTime('2023-08-30T13:00:00Z', now), 'in the future');
+  assert.equal(relativeTime('2023-08-30T12:00:45Z', now), 'just now');
 });
 
 test('incidentDuration uses resolvedAt when present', () => {
@@ -21,4 +22,9 @@ test('incidentDuration uses resolvedAt when present', () => {
   const done = { createdAt: '2023-08-30T10:00:00Z', resolvedAt: '2023-08-30T10:12:00Z' };
   assert.equal(incidentDuration(open, Date.parse('2023-08-30T11:00:00Z')), '1h');
   assert.equal(incidentDuration(done, Date.parse('2023-09-01T00:00:00Z')), '12m');
+});
+
+test('an open incident never shows a negative duration under clock skew', () => {
+  const open = { createdAt: '2023-08-30T10:00:30Z', resolvedAt: null };
+  assert.equal(incidentDuration(open, Date.parse('2023-08-30T10:00:00Z')), '0s');
 });

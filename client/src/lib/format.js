@@ -14,6 +14,9 @@ export function formatDuration(ms) {
 
 export function relativeTime(iso, nowMs = Date.now()) {
   const diff = nowMs - Date.parse(iso);
+  // A browser clock a little behind the server's would otherwise make every
+  // brand-new incident read "in the future".
+  if (diff < 0 && diff > -120_000) return 'just now';
   if (diff < 0) return 'in the future';
   if (diff < 45_000) return 'just now';
   return `${formatDuration(diff)} ago`;
@@ -21,5 +24,5 @@ export function relativeTime(iso, nowMs = Date.now()) {
 
 export function incidentDuration(incident, nowMs = Date.now()) {
   const end = incident.resolvedAt ? Date.parse(incident.resolvedAt) : nowMs;
-  return formatDuration(end - Date.parse(incident.createdAt));
+  return formatDuration(Math.max(0, end - Date.parse(incident.createdAt)));
 }
