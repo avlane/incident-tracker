@@ -1,12 +1,13 @@
 import { HttpError } from './errors.js';
 import { readJson, sendJson, sendText } from './http.js';
 import { createRouter } from './router.js';
+import { registerExportRoutes } from './handlers/export.js';
 import { registerIncidentRoutes } from './handlers/incidents.js';
 import { registerOnCallRoutes } from './handlers/oncall.js';
 import { registerPostmortemRoutes } from './handlers/postmortem.js';
 import { registerServiceRoutes } from './handlers/services.js';
 
-const modules = [registerIncidentRoutes, registerServiceRoutes, registerPostmortemRoutes, registerOnCallRoutes];
+const modules = [registerIncidentRoutes, registerServiceRoutes, registerPostmortemRoutes, registerOnCallRoutes, registerExportRoutes];
 
 export function createApp({ store, clock = () => new Date().toISOString(), logger = console } = {}) {
   const router = createRouter();
