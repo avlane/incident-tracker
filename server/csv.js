@@ -1,8 +1,15 @@
 // RFC 4180 CSV output: CRLF line endings, fields containing commas, quotes or
 // line breaks are quoted, and quotes inside a field are doubled.
 
+// Spreadsheet programs run a cell that starts with = + - @ (or a tab or
+// carriage return) as a formula. Titles and commander names are user input, so
+// those cells get a leading apostrophe, which spreadsheets show as plain text.
+// Numbers are exempt: a negative number is not a formula.
+const FORMULA_START = /^[=+\-@\t\r]/;
+
 export function csvField(value) {
-  const text = value === null || value === undefined ? '' : String(value);
+  let text = value === null || value === undefined ? '' : String(value);
+  if (typeof value === 'string' && FORMULA_START.test(text)) text = `'${text}`;
   return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 

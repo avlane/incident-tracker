@@ -31,3 +31,23 @@ test('incident rows include duration for resolved incidents only', () => {
   const done = toCsv([inc], INCIDENT_COLUMNS).split('\r\n')[1];
   assert.match(done, /,2023-10-18T10:05:00.000Z,300,2$/);
 });
+
+test('cells that look like formulas are neutralised', () => {
+  assert.equal(csvField('=HYPERLINK("http://x")'), `"'=HYPERLINK(""http://x"")"`);
+  assert.equal(csvField('+1'), "'+1");
+  assert.equal(csvField('-2+3'), "'-2+3");
+  assert.equal(csvField('@SUM(A1)'), "'@SUM(A1)");
+  assert.equal(csvField('\tx'), "'\tx");
+  assert.equal(csvField(-5), '-5');
+  assert.equal(csvField('a=b'), 'a=b');
+});
+
+test('cells that look like formulas are neutralised', () => {
+  assert.equal(csvField('=HYPERLINK("http://x")'), `"'=HYPERLINK(""http://x"")"`);
+  assert.equal(csvField('+1'), "'+1");
+  assert.equal(csvField('-2+3'), "'-2+3");
+  assert.equal(csvField('@SUM(A1)'), "'@SUM(A1)");
+  assert.equal(csvField('\tx'), "'\tx");
+  assert.equal(csvField(-5), '-5');
+  assert.equal(csvField('a=b'), 'a=b');
+});
