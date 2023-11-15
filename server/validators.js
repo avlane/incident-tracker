@@ -67,6 +67,10 @@ export function validateIncidentInput(input) {
     value.severity = input.severity;
   }
   value.affected = affectedList(input, errors);
+  if (input.public !== undefined) {
+    if (typeof input.public === 'boolean') value.public = input.public;
+    else errors.push({ field: 'public', message: 'public must be true or false' });
+  }
   for (const key of Object.keys(value)) if (value[key] === undefined) delete value[key];
   return { value, errors };
 }
@@ -86,6 +90,10 @@ export function validateUpdateInput(input) {
   if (input.severity !== undefined) {
     if (SEVERITIES.includes(input.severity)) value.severity = input.severity;
     else errors.push({ field: 'severity', message: `severity must be one of ${SEVERITIES.join(', ')}` });
+  }
+  if (input.visibility !== undefined) {
+    if (input.visibility === 'public' || input.visibility === 'internal') value.visibility = input.visibility;
+    else errors.push({ field: 'visibility', message: 'visibility must be public or internal' });
   }
   for (const key of Object.keys(value)) if (value[key] === undefined) delete value[key];
   return { value, errors };

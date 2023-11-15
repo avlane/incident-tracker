@@ -31,6 +31,8 @@ export function createIncident(input, { id, now }) {
     status: 'investigating',
     commander: input.commander ?? null,
     affected: input.affected ?? [],
+    // Incidents are shown on the public status page unless marked otherwise.
+    public: input.public ?? true,
     createdAt: now,
     updatedAt: now,
     resolvedAt: null,
@@ -42,6 +44,7 @@ export function createIncident(input, { id, now }) {
         author: input.commander ?? null,
         status: 'investigating',
         severity: input.severity,
+        visibility: 'public',
         message: input.summary || 'Incident opened.',
       },
     ],
@@ -52,7 +55,7 @@ export function createIncident(input, { id, now }) {
 // It never mutates its input and never reads the clock: timestamps arrive on
 // the action, which keeps it trivial to test and to replay.
 //
-//   { type: 'post_update', at, author, message, status?, severity? }
+//   { type: 'post_update', at, author, message, status?, severity?, visibility? }
 //   { type: 'assign', at, commander }
 export function incidentReducer(incident, action) {
   switch (action.type) {
@@ -66,6 +69,7 @@ export function incidentReducer(incident, action) {
         author: action.author ?? null,
         status,
         severity,
+        visibility: action.visibility ?? 'public',
         message: action.message,
       };
       return {
