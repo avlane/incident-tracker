@@ -4,6 +4,7 @@ export function parseHash(hash) {
   const path = hash.replace(/^#/, '').replace(/\/+$/, '');
   const parts = path.split('/').filter(Boolean);
   if (parts.length === 0) return { name: 'list' };
+  if (parts.length === 1 && parts[0] === 'status') return { name: 'status' };
   if (parts[0] === 'incidents' && parts.length === 2) {
     return { name: 'incident', id: decodeURIComponent(parts[1]) };
   }
@@ -11,6 +12,7 @@ export function parseHash(hash) {
 }
 
 export function hrefFor(route) {
+  if (route.name === 'status') return '#/status';
   if (route.name === 'incident') return `#/incidents/${encodeURIComponent(route.id)}`;
   return '#/';
 }

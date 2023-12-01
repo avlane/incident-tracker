@@ -6,8 +6,9 @@ import { registerIncidentRoutes } from './handlers/incidents.js';
 import { registerOnCallRoutes } from './handlers/oncall.js';
 import { registerPostmortemRoutes } from './handlers/postmortem.js';
 import { registerServiceRoutes } from './handlers/services.js';
+import { registerStatusRoutes } from './handlers/status.js';
 
-const modules = [registerIncidentRoutes, registerServiceRoutes, registerPostmortemRoutes, registerOnCallRoutes, registerExportRoutes];
+const modules = [registerIncidentRoutes, registerServiceRoutes, registerPostmortemRoutes, registerOnCallRoutes, registerExportRoutes, registerStatusRoutes];
 
 export function createApp({ store, clock = () => new Date().toISOString(), logger = console } = {}) {
   const router = createRouter();

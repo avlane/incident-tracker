@@ -6,6 +6,7 @@ import FilterBar from './components/FilterBar.jsx';
 import IncidentForm from './components/IncidentForm.jsx';
 import IncidentDetail from './components/IncidentDetail.jsx';
 import IncidentList from './components/IncidentList.jsx';
+import StatusPage from './components/StatusPage.jsx';
 
 function useHashRoute() {
   const [route, setRoute] = useState(() => parseHash(window.location.hash));
@@ -56,7 +57,12 @@ export default function App() {
     <main className="page">
       <header className="top">
         <h1>Incident tracker</h1>
+        <nav>
+          <a href="#/">Incidents</a>
+          <a href="#/status">Public status page</a>
+        </nav>
       </header>
+      {route.name === 'status' && <StatusPage api={api} />}
       {route.name === 'list' && (
         <>
           <IncidentForm api={api} services={services} onCreated={() => setReload((n) => n + 1)} />

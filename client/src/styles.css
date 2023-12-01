@@ -245,3 +245,52 @@ button.link {
   padding-left: 20px;
   color: var(--muted);
 }
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.top nav a {
+  margin-left: 16px;
+  color: var(--accent);
+}
+
+.banner {
+  padding: 14px 16px;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.st-operational { background: #1f7a45; }
+.st-degraded { background: #a77b00; }
+.st-partial_outage { background: #c4590a; }
+.st-major_outage { background: #b3261e; }
+.st-unknown { background: #667085; }
+
+.services,
+.components,
+.public-updates {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.service-head,
+.components li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.pill {
+  color: #fff;
+  border-radius: 10px;
+  padding: 1px 10px;
+  font-size: 12px;
+}

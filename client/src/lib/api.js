@@ -48,6 +48,7 @@ export function createApi({ fetchImpl = (...args) => globalThis.fetch(...args), 
     createIncident: (input) => request('POST', '/api/incidents', input),
     postUpdate: (id, input) => request('POST', `/api/incidents/${encodeURIComponent(id)}/updates`, input),
     getPostmortem: (id) => request('GET', `/api/incidents/${encodeURIComponent(id)}/postmortem`),
+    getStatus: () => request('GET', '/api/status'),
     listServices: () => request('GET', '/api/services'),
     listOnCall: () => request('GET', '/api/oncall'),
   };
