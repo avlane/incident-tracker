@@ -1,3 +1,4 @@
+import { ROLES } from './auth.js';
 import { IMPACTS, SEVERITIES, STATUSES } from './incidents.js';
 
 // Validators return { value, errors }. `value` is the cleaned input and is
@@ -172,5 +173,25 @@ export function validateOverrideInput(input) {
   if (value.from && value.to && Date.parse(value.to) <= Date.parse(value.from)) {
     errors.push({ field: 'to', message: 'to must be after from' });
   }
+  return { value, errors };
+}
+
+export function validateUserInput(input) {
+  const errors = [];
+  if (input === null || typeof input !== 'object' || Array.isArray(input)) {
+    return { value: null, errors: [{ field: '', message: 'body must be an object' }] };
+  }
+  const value = {};
+  value.name = text(input, 'name', { required: true, max: 80 }, errors);
+  const email = text(input, 'email', { required: true, max: 200 }, errors);
+  if (email !== undefined) {
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) value.email = email.toLowerCase();
+    else errors.push({ field: 'email', message: 'email is not valid' });
+  }
+  if (ROLES.includes(input.role)) value.role = input.role;
+  else errors.push({ field: 'role', message: `role must be one of ${ROLES.join(', ')}` });
+  if (typeof input.password === 'string') value.password = input.password;
+  else errors.push({ field: 'password', message: 'password is required' });
+  for (const key of Object.keys(value)) if (value[key] === undefined) delete value[key];
   return { value, errors };
 }
