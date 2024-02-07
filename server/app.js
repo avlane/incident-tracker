@@ -1,6 +1,8 @@
 import { HttpError } from './errors.js';
-import { readJson, sendJson, sendText } from './http.js';
+import { bearerToken, parseCookies, readJson, sendJson, sendText } from './http.js';
+import { createAuthService } from './auth.js';
 import { createRouter } from './router.js';
+import { registerAuthRoutes, SESSION_COOKIE } from './handlers/auth.js';
 import { registerExportRoutes } from './handlers/export.js';
 import { registerIncidentRoutes } from './handlers/incidents.js';
 import { registerOnCallRoutes } from './handlers/oncall.js';
@@ -8,11 +10,12 @@ import { registerPostmortemRoutes } from './handlers/postmortem.js';
 import { registerServiceRoutes } from './handlers/services.js';
 import { registerStatusRoutes } from './handlers/status.js';
 
-const modules = [registerIncidentRoutes, registerServiceRoutes, registerPostmortemRoutes, registerOnCallRoutes, registerExportRoutes, registerStatusRoutes];
+const modules = [registerAuthRoutes, registerIncidentRoutes, registerServiceRoutes, registerPostmortemRoutes, registerOnCallRoutes, registerExportRoutes, registerStatusRoutes];
 
-export function createApp({ store, clock = () => new Date().toISOString(), logger = console } = {}) {
+export function createApp({ store, clock = () => new Date().toISOString(), logger = console, hashParams } = {}) {
   const router = createRouter();
-  const deps = { store, clock, logger };
+  const auth = createAuthService({ store, clock, hashParams });
+  const deps = { store, clock, logger, auth };
   for (const register of modules) register(router, deps);
 
   // Handlers return { status?, body?, text?, contentType?, headers? }.
@@ -26,8 +29,11 @@ export function createApp({ store, clock = () => new Date().toISOString(), logge
       throw error;
     }
     let parsed;
+    const token = bearerToken(req.headers.authorization) ?? parseCookies(req.headers.cookie)[SESSION_COOKIE] ?? null;
     const ctx = {
       ...deps,
+      token,
+      user: auth.authenticate(token)?.user ?? null,
       req,
       url,
       query: url.searchParams,
@@ -64,5 +70,5 @@ export function createApp({ store, clock = () => new Date().toISOString(), logge
     }
   }
 
-  return { handle, router };
+  return { handle, router, auth };
 }

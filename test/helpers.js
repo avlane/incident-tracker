@@ -19,7 +19,7 @@ export async function startTestServer(options = {}) {
   const store = options.store ?? createJsonStore();
   const clock = options.clock ?? fakeClock();
   const logger = options.logger ?? { error() {}, warn() {}, info() {} };
-  const app = createApp({ store, clock, logger });
+  const app = createApp({ store, clock, logger, hashParams: { N: 1024 } });
   const server = createServer((req, res) => app.handle(req, res));
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;

@@ -38,3 +38,25 @@ export function sendText(res, status, text, contentType = 'text/plain; charset=u
   });
   res.end(text);
 }
+
+export function parseCookies(header = '') {
+  const out = {};
+  for (const part of header.split(';')) {
+    const i = part.indexOf('=');
+    if (i < 0) continue;
+    const name = part.slice(0, i).trim();
+    if (name && !(name in out)) {
+      try {
+        out[name] = decodeURIComponent(part.slice(i + 1).trim());
+      } catch {
+        // ignore cookies that aren't valid percent-encoding
+      }
+    }
+  }
+  return out;
+}
+
+export function bearerToken(header = '') {
+  const m = /^Bearer\s+(\S+)$/i.exec(header);
+  return m ? m[1] : null;
+}
