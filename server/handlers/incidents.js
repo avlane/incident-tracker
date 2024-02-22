@@ -59,7 +59,12 @@ export function registerIncidentRoutes(router, { store, clock }) {
     if (value.status && !canTransition(incident.status, value.status)) {
       throw conflict(`cannot move from ${incident.status} to ${value.status}; reopen it with investigating first`);
     }
-    const next = incidentReducer(incident, { type: 'post_update', at: clock(), ...value });
+    const next = incidentReducer(incident, {
+      type: 'post_update',
+      at: clock(),
+      ...value,
+      author: ctx.user?.name ?? value.author,
+    });
     store.put('incidents', next);
     return { status: 201, body: { incident: next } };
   });

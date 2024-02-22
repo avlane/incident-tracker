@@ -1,6 +1,7 @@
 import { HttpError } from './errors.js';
 import { bearerToken, parseCookies, readJson, sendJson, sendText } from './http.js';
-import { createAuthService } from './auth.js';
+import { createAuthService, hasRole } from './auth.js';
+import { requiredRole } from './policy.js';
 import { createRouter } from './router.js';
 import { registerAuthRoutes, SESSION_COOKIE } from './handlers/auth.js';
 import { registerExportRoutes } from './handlers/export.js';
@@ -12,7 +13,7 @@ import { registerStatusRoutes } from './handlers/status.js';
 
 const modules = [registerAuthRoutes, registerIncidentRoutes, registerServiceRoutes, registerPostmortemRoutes, registerOnCallRoutes, registerExportRoutes, registerStatusRoutes];
 
-export function createApp({ store, clock = () => new Date().toISOString(), logger = console, hashParams } = {}) {
+export function createApp({ store, clock = () => new Date().toISOString(), logger = console, hashParams, requireAuth = true } = {}) {
   const router = createRouter();
   const auth = createAuthService({ store, clock, hashParams });
   const deps = { store, clock, logger, auth };
@@ -28,12 +29,18 @@ export function createApp({ store, clock = () => new Date().toISOString(), logge
       error.headers = { allow: found.allowed.join(', ') };
       throw error;
     }
-    let parsed;
+    const needed = requireAuth ? requiredRole(req.method, url.pathname) : 'public';
     const token = bearerToken(req.headers.authorization) ?? parseCookies(req.headers.cookie)[SESSION_COOKIE] ?? null;
+    const user = auth.authenticate(token)?.user ?? null;
+    if (needed !== 'public') {
+      if (!user) throw new HttpError(401, 'sign in required');
+      if (!hasRole(user, needed)) throw new HttpError(403, `requires the ${needed} role`);
+    }
+    let parsed;
     const ctx = {
       ...deps,
       token,
-      user: auth.authenticate(token)?.user ?? null,
+      user,
       req,
       url,
       query: url.searchParams,

@@ -55,7 +55,7 @@ test('malformed JSON is a 400', async (t) => {
   t.after(() => srv.close());
   const res = await fetch(srv.base + '/api/incidents', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { ...srv.headers, 'content-type': 'application/json' },
     body: '{"title": ',
   });
   assert.equal(res.status, 400);
