@@ -32,6 +32,22 @@ Environment variables: `PORT` (default 3000), `HOST` (default 127.0.0.1) and
 npm test
 ```
 
+## Users and sign-in
+
+Every API route except `GET /api/status` and the login route needs a session.
+There is no sign-up page; create the first user from the command line, reading
+the password from stdin so it never lands in shell history or `ps`:
+
+```
+printf '%s' 'a long passphrase' | node server/cli.js create-user \
+  --email you@example.com --name "You" --role admin --password-stdin
+```
+
+Roles: `viewer` can read, `responder` can open incidents and post updates,
+`admin` can change everything else. Passwords are hashed with scrypt from
+`node:crypto`; session tokens are random, sent as an HttpOnly cookie (or a
+bearer token) and only their SHA-256 is stored.
+
 ## HTTP API
 
 | Method and path | What it does |
@@ -45,6 +61,7 @@ npm test
 | `GET`/`POST /api/services`, `GET`/`PATCH`/`DELETE /api/services/:id` | Services and their components |
 | `GET`/`POST /api/oncall`, `POST /api/oncall/:id/overrides` | Rotations and overrides; new incidents default their commander to whoever is on call |
 | `GET /api/status` | Public status page data |
+| `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` | Sign in, sign out, who am I |
 
 A resolved incident can only be reopened (moved back to `investigating`).
 
