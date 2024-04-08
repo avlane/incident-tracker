@@ -60,3 +60,14 @@ export function bearerToken(header = '') {
   const m = /^Bearer\s+(\S+)$/i.exec(header);
   return m ? m[1] : null;
 }
+
+// The address to rate-limit and audit by. X-Forwarded-For is only believed when
+// the operator says a trusted proxy sets it; otherwise anyone could pick their
+// own address by sending the header.
+export function clientIp(req, trustProxy = false) {
+  if (trustProxy) {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (typeof forwarded === 'string' && forwarded.trim() !== '') return forwarded.split(',')[0].trim();
+  }
+  return req.socket?.remoteAddress ?? 'unknown';
+}

@@ -1,5 +1,6 @@
-import { HttpError } from './errors.js';
-import { bearerToken, parseCookies, readJson, sendJson, sendText } from './http.js';
+import { HttpError, tooManyRequests } from './errors.js';
+import { bearerToken, clientIp, parseCookies, readJson, sendJson, sendText } from './http.js';
+import { createRateLimiter } from './ratelimit.js';
 import { createAuthService, hasRole } from './auth.js';
 import { requiredRole } from './policy.js';
 import { createRouter } from './router.js';
@@ -13,15 +14,40 @@ import { registerStatusRoutes } from './handlers/status.js';
 
 const modules = [registerAuthRoutes, registerIncidentRoutes, registerServiceRoutes, registerPostmortemRoutes, registerOnCallRoutes, registerExportRoutes, registerStatusRoutes];
 
-export function createApp({ store, clock = () => new Date().toISOString(), logger = console, hashParams, requireAuth = true } = {}) {
+export function createApp({
+  store, clock = () => new Date().toISOString(), logger = console,
+  hashParams,
+  requireAuth = true,
+  trustProxy = false,
+  rateLimit = {},
+} = {}) {
   const router = createRouter();
   const auth = createAuthService({ store, clock, hashParams });
-  const deps = { store, clock, logger, auth };
+  // rateLimit: false turns limiting off; otherwise each part can be tuned.
+  const limits = rateLimit === false ? null : rateLimit;
+  const limiters = limits
+    ? {
+        global: createRateLimiter({ limit: 300, windowMs: 60_000, ...limits.global, now: limits.now }),
+        login: createRateLimiter({ limit: 10, windowMs: 15 * 60_000, ...limits.login, now: limits.now }),
+      }
+    : null;
+  const sweeper = limiters
+    ? setInterval(() => Object.values(limiters).forEach((l) => l.sweep()), 60_000)
+    : null;
+  sweeper?.unref();
+  const deps = { store, clock, logger, auth, limiters };
   for (const register of modules) register(router, deps);
 
   // Handlers return { status?, body?, text?, contentType?, headers? }.
   async function dispatch(req, res) {
     const url = new URL(req.url, 'http://localhost');
+    const ip = clientIp(req, trustProxy);
+    if (limiters) {
+      const verdict = limiters.global.check(ip);
+      res.setHeader('ratelimit-limit', String(verdict.limit));
+      res.setHeader('ratelimit-remaining', String(verdict.remaining));
+      if (!verdict.allowed) throw tooManyRequests(verdict.retryAfterSeconds);
+    }
     const found = router.match(req.method, url.pathname);
     if (!found) throw new HttpError(404, 'not found');
     if (found.allowed) {
@@ -39,6 +65,7 @@ export function createApp({ store, clock = () => new Date().toISOString(), logge
     let parsed;
     const ctx = {
       ...deps,
+      ip,
       token,
       user,
       req,
@@ -77,5 +104,5 @@ export function createApp({ store, clock = () => new Date().toISOString(), logge
     }
   }
 
-  return { handle, router, auth };
+  return { handle, router, auth, close: () => clearInterval(sweeper) };
 }

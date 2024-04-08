@@ -5,7 +5,7 @@ import { openStore } from './store/index.js';
 
 const config = loadConfig();
 const store = await openStore(config);
-const app = createApp({ store });
+const app = createApp({ store, trustProxy: config.trustProxy });
 const server = createServer((req, res) => app.handle(req, res));
 
 server.listen(config.port, config.host, () => {

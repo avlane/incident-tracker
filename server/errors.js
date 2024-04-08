@@ -11,3 +11,9 @@ export const badRequest = (message, details) => new HttpError(400, message, deta
 export const notFound = (message = 'not found') => new HttpError(404, message);
 export const unprocessable = (errors) => new HttpError(422, 'validation failed', errors);
 export const conflict = (message) => new HttpError(409, message);
+
+export function tooManyRequests(retryAfterSeconds) {
+  const error = new HttpError(429, 'too many requests');
+  error.headers = { 'retry-after': String(retryAfterSeconds) };
+  return error;
+}

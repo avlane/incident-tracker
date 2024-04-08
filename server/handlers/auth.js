@@ -1,4 +1,4 @@
-import { HttpError, unprocessable } from '../errors.js';
+import { HttpError, tooManyRequests, unprocessable } from '../errors.js';
 
 export const SESSION_COOKIE = 'session';
 
@@ -8,14 +8,18 @@ function cookie(token, expiresAt) {
   return `${SESSION_COOKIE}=${encodeURIComponent(token)}; ${attrs.join('; ')}`;
 }
 
-export function registerAuthRoutes(router, { auth }) {
+export function registerAuthRoutes(router, { auth, limiters }) {
   router.post('/api/auth/login', async (ctx) => {
+    // Failed guesses are what we want to slow down; a success clears the count.
+    const verdict = limiters?.login.check(ctx.ip);
+    if (verdict && !verdict.allowed) throw tooManyRequests(verdict.retryAfterSeconds);
     const body = await ctx.readBody();
     if (typeof body.email !== 'string' || typeof body.password !== 'string') {
       throw unprocessable([{ field: 'email', message: 'email and password are required' }]);
     }
     const session = await auth.login(body.email, body.password);
     if (!session) throw new HttpError(401, 'invalid email or password');
+    limiters?.login.reset(ctx.ip);
     return {
       body: { user: session.user, expiresAt: session.expiresAt },
       headers: { 'set-cookie': cookie(session.token, session.expiresAt) },
