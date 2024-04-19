@@ -12,10 +12,20 @@ import { registerPostmortemRoutes } from './handlers/postmortem.js';
 import { registerServiceRoutes } from './handlers/services.js';
 import { registerStatusRoutes } from './handlers/status.js';
 
-const modules = [registerAuthRoutes, registerIncidentRoutes, registerServiceRoutes, registerPostmortemRoutes, registerOnCallRoutes, registerExportRoutes, registerStatusRoutes];
+const modules = [
+  registerAuthRoutes,
+  registerIncidentRoutes,
+  registerServiceRoutes,
+  registerPostmortemRoutes,
+  registerOnCallRoutes,
+  registerExportRoutes,
+  registerStatusRoutes,
+];
 
 export function createApp({
-  store, clock = () => new Date().toISOString(), logger = console,
+  store,
+  clock = () => new Date().toISOString(),
+  logger = console,
   hashParams,
   requireAuth = true,
   trustProxy = false,
