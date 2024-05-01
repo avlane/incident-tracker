@@ -18,7 +18,11 @@ export function registerAuthRoutes(router, { auth, limiters }) {
       throw unprocessable([{ field: 'email', message: 'email and password are required' }]);
     }
     const session = await auth.login(body.email, body.password);
-    if (!session) throw new HttpError(401, 'invalid email or password');
+    if (!session) {
+      ctx.audit('auth.login_failed', null, { email: body.email.slice(0, 200) });
+      throw new HttpError(401, 'invalid email or password');
+    }
+    ctx.audit('auth.login', session.user.id, {}, session.user);
     limiters?.login.reset(ctx.ip);
     return {
       body: { user: session.user, expiresAt: session.expiresAt },
@@ -27,7 +31,7 @@ export function registerAuthRoutes(router, { auth, limiters }) {
   });
 
   router.post('/api/auth/logout', async (ctx) => {
-    if (ctx.token) auth.logout(ctx.token);
+    if (ctx.token && auth.logout(ctx.token)) ctx.audit('auth.logout', ctx.user?.id ?? null);
     return { status: 204, headers: { 'set-cookie': cookie('', new Date(0)) } };
   });
 

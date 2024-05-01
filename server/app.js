@@ -1,6 +1,7 @@
 import { HttpError, tooManyRequests } from './errors.js';
 import { bearerToken, clientIp, parseCookies, readJson, sendJson, sendText } from './http.js';
 import { createRateLimiter } from './ratelimit.js';
+import { createAuditLog } from './audit.js';
 import { createAuthService, hasRole } from './auth.js';
 import { requiredRole } from './policy.js';
 import { createRouter } from './router.js';
@@ -45,7 +46,8 @@ export function createApp({
     ? setInterval(() => Object.values(limiters).forEach((l) => l.sweep()), 60_000)
     : null;
   sweeper?.unref();
-  const deps = { store, clock, logger, auth, limiters };
+  const auditLog = createAuditLog({ store, clock });
+  const deps = { store, clock, logger, auth, limiters, auditLog };
   for (const register of modules) register(router, deps);
 
   // Handlers return { status?, body?, text?, contentType?, headers? }.
@@ -78,6 +80,8 @@ export function createApp({
       ip,
       token,
       user,
+      // Handlers call this after a change succeeds: ctx.audit('incident.create', id, { ... }).
+      audit: (action, target, meta, actor = user) => auditLog.record({ actor, action, target, ip, meta }),
       req,
       url,
       query: url.searchParams,
@@ -114,5 +118,5 @@ export function createApp({
     }
   }
 
-  return { handle, router, auth, close: () => clearInterval(sweeper) };
+  return { handle, router, auth, auditLog, close: () => clearInterval(sweeper) };
 }

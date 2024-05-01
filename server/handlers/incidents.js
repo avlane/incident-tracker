@@ -38,6 +38,7 @@ export function registerIncidentRoutes(router, { store, clock }) {
     }
     const incident = createIncident(value, { id, now });
     store.put('incidents', incident);
+    ctx.audit('incident.create', incident.id, { severity: incident.severity, title: incident.title });
     return { status: 201, body: { incident } };
   });
 
@@ -66,6 +67,11 @@ export function registerIncidentRoutes(router, { store, clock }) {
       author: ctx.user?.name ?? value.author,
     });
     store.put('incidents', next);
+    ctx.audit('incident.update', next.id, {
+      status: next.status,
+      severity: next.severity,
+      visibility: next.updates.at(-1).visibility,
+    });
     return { status: 201, body: { incident: next } };
   });
 }

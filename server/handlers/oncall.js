@@ -33,6 +33,7 @@ export function registerOnCallRoutes(router, { store, clock }) {
     const now = clock();
     const schedule = createSchedule(value, { id, now });
     store.put('oncall', schedule);
+    ctx.audit('oncall.create', schedule.id, { members: schedule.members });
     return { status: 201, body: { schedule: present(schedule, now) } };
   });
 
@@ -42,12 +43,14 @@ export function registerOnCallRoutes(router, { store, clock }) {
     if (errors.length > 0) throw unprocessable(errors);
     const next = addOverride(schedule, value);
     store.put('oncall', next);
+    ctx.audit('oncall.override', next.id, value);
     return { status: 201, body: { schedule: present(next, clock()) } };
   });
 
-  router.delete('/api/oncall/:id', async ({ params }) => {
-    load(params.id);
-    store.remove('oncall', params.id);
+  router.delete('/api/oncall/:id', async (ctx) => {
+    load(ctx.params.id);
+    store.remove('oncall', ctx.params.id);
+    ctx.audit('oncall.delete', ctx.params.id);
     return { status: 204 };
   });
 }

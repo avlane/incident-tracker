@@ -25,6 +25,7 @@ export function registerServiceRoutes(router, { store, clock }) {
     if (clash) throw conflict(`a service named "${clash.name}" already exists`);
     const service = createService(value, { takenIds, now: clock() });
     store.put('services', service);
+    ctx.audit('service.create', service.id, { name: service.name });
     return { status: 201, body: { service } };
   });
 
@@ -34,11 +35,12 @@ export function registerServiceRoutes(router, { store, clock }) {
     if (errors.length > 0) throw unprocessable(errors);
     const next = updateService(service, value, { now: clock() });
     store.put('services', next);
+    ctx.audit('service.update', next.id, { fields: Object.keys(value) });
     return { body: { service: next } };
   });
 
-  router.delete('/api/services/:id', async ({ params }) => {
-    const service = load(params.id);
+  router.delete('/api/services/:id', async (ctx) => {
+    const service = load(ctx.params.id);
     const blocking = store
       .list('incidents')
       .filter((i) => isOpen(i) && i.affected.some((a) => a.serviceId === service.id));
@@ -46,6 +48,7 @@ export function registerServiceRoutes(router, { store, clock }) {
       throw conflict(`service is affected by ${blocking.length} open incident(s)`);
     }
     store.remove('services', service.id);
+    ctx.audit('service.delete', service.id, { name: service.name });
     return { status: 204, body: undefined };
   });
 }
