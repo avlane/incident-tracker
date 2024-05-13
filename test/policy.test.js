@@ -28,3 +28,9 @@ test('unknown writes default to admin', () => {
   assert.equal(requiredRole('PUT', '/api/whatever'), 'admin');
   assert.equal(requiredRole('POST', '/api/incidents/INC-0001/purge'), 'admin');
 });
+
+test('the audit log is admin-only even to read', () => {
+  assert.equal(requiredRole('GET', '/api/audit'), 'admin');
+  assert.equal(requiredRole('GET', '/api/audit/'), 'admin');
+  assert.equal(requiredRole('GET', '/api/auditing-notes'), 'viewer');
+});

@@ -5,6 +5,7 @@ import { createAuditLog } from './audit.js';
 import { createAuthService, hasRole } from './auth.js';
 import { requiredRole } from './policy.js';
 import { createRouter } from './router.js';
+import { registerAuditRoutes } from './handlers/audit.js';
 import { registerAuthRoutes, SESSION_COOKIE } from './handlers/auth.js';
 import { registerExportRoutes } from './handlers/export.js';
 import { registerIncidentRoutes } from './handlers/incidents.js';
@@ -15,6 +16,7 @@ import { registerStatusRoutes } from './handlers/status.js';
 
 const modules = [
   registerAuthRoutes,
+  registerAuditRoutes,
   registerIncidentRoutes,
   registerServiceRoutes,
   registerPostmortemRoutes,

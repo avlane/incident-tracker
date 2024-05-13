@@ -13,6 +13,9 @@ const PUBLIC = [
   ['POST', /^\/api\/auth\/logout\/?$/],
 ];
 
+// Reads that expose who did what, or credentials-adjacent settings.
+const ADMIN_READ = [['GET', /^\/api\/(audit|users|webhooks)(\/|$)/]];
+
 const RESPONDER = [
   ['POST', /^\/api\/incidents\/?$/],
   ['POST', /^\/api\/incidents\/[^/]+\/updates\/?$/],
@@ -23,6 +26,7 @@ const matches = (rules, method, path) => rules.some(([m, re]) => m === method &&
 
 export function requiredRole(method, path) {
   if (matches(PUBLIC, method, path)) return 'public';
+  if (matches(ADMIN_READ, method, path)) return 'admin';
   if (method === 'GET' || method === 'HEAD') return 'viewer';
   if (matches(RESPONDER, method, path)) return 'responder';
   return 'admin';

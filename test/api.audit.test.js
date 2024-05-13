@@ -46,3 +46,28 @@ test('a rejected write is not audited', async (t) => {
   await srv.api('POST', '/api/incidents', { title: '', severity: 'nope' });
   assert.equal(srv.app.auditLog.list().entries.length, 0);
 });
+
+test('GET /api/audit is admin-only and supports filters and paging', async (t) => {
+  const srv = await startTestServer();
+  t.after(() => srv.close());
+  for (let i = 0; i < 3; i++) await srv.api('POST', '/api/incidents', { title: `i${i}`, severity: 'sev4' });
+  await srv.api('POST', '/api/services', { name: 'Checkout' });
+
+  const viewer = await srv.as('viewer');
+  assert.equal((await viewer('GET', '/api/audit')).status, 403);
+  assert.equal((await srv.anon('GET', '/api/audit')).status, 401);
+
+  const all = await srv.api('GET', '/api/audit');
+  assert.equal(all.json.entries.length, 4);
+  assert.equal(all.json.entries[0].action, 'service.create');
+
+  const incidents = await srv.api('GET', '/api/audit?action=incident&limit=2');
+  assert.equal(incidents.json.entries.length, 2);
+  assert.equal(incidents.json.hasMore, true);
+  const rest = await srv.api('GET', `/api/audit?action=incident&limit=2&before=${incidents.json.entries[1].id}`);
+  assert.equal(rest.json.entries.length, 1);
+  assert.equal(rest.json.hasMore, false);
+
+  assert.equal((await srv.api('GET', '/api/audit?limit=0')).status, 400);
+  assert.equal((await srv.api('GET', '/api/audit?from=never')).status, 400);
+});
