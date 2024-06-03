@@ -294,3 +294,17 @@ button.link {
   padding: 1px 10px;
   font-size: 12px;
 }
+
+.who {
+  margin-left: 16px;
+  color: var(--muted);
+}
+
+.top nav button.link {
+  margin-left: 12px;
+}
+
+.login {
+  max-width: 360px;
+  margin: 40px auto;
+}

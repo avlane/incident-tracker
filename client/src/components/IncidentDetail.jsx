@@ -2,10 +2,13 @@ import { useEffect, useState } from 'react';
 import { incidentDuration } from '../lib/format.js';
 import { IMPACT_LABEL } from '../lib/labels.js';
 import { SeverityBadge, StatusBadge } from './Badges.jsx';
+import { canRespond } from '../lib/session.js';
+import { useUser } from './AuthContext.jsx';
 import Timeline from './Timeline.jsx';
 import UpdateForm from './UpdateForm.jsx';
 
 export default function IncidentDetail({ api, id }) {
+  const user = useUser();
   const [incident, setIncident] = useState(null);
   const [error, setError] = useState(null);
 
@@ -55,7 +58,7 @@ export default function IncidentDetail({ api, id }) {
           ))}
         </ul>
       )}
-      <UpdateForm api={api} incident={incident} onUpdated={setIncident} />
+      {canRespond(user) && <UpdateForm api={api} incident={incident} onUpdated={setIncident} />}
       <Timeline incident={incident} />
       <p>
         <a href={`/api/incidents/${encodeURIComponent(incident.id)}/postmortem`}>Download postmortem draft (Markdown)</a>

@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useReducer, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
 import { createApi } from './lib/api.js';
 import { filtersReducer, initialFilters } from './lib/filters.js';
 import { parseHash } from './lib/route.js';
+import { canRespond, initialSession, sessionReducer } from './lib/session.js';
+import { AuthContext } from './components/AuthContext.jsx';
 import FilterBar from './components/FilterBar.jsx';
-import IncidentForm from './components/IncidentForm.jsx';
 import IncidentDetail from './components/IncidentDetail.jsx';
+import IncidentForm from './components/IncidentForm.jsx';
 import IncidentList from './components/IncidentList.jsx';
+import Login from './components/Login.jsx';
 import StatusPage from './components/StatusPage.jsx';
 
 function useHashRoute() {
@@ -18,9 +21,7 @@ function useHashRoute() {
   return route;
 }
 
-export default function App() {
-  const api = useMemo(() => createApi(), []);
-  const route = useHashRoute();
+function Incidents({ api, user }) {
   const [filters, dispatch] = useReducer(filtersReducer, initialFilters);
   const [data, setData] = useState({ incidents: [], total: 0 });
   const [services, setServices] = useState([]);
@@ -54,25 +55,68 @@ export default function App() {
   }, [api, filters, reload]);
 
   return (
-    <main className="page">
-      <header className="top">
-        <h1>Incident tracker</h1>
-        <nav>
-          <a href="#/">Incidents</a>
-          <a href="#/status">Public status page</a>
-        </nav>
-      </header>
-      {route.name === 'status' && <StatusPage api={api} />}
-      {route.name === 'list' && (
-        <>
-          <IncidentForm api={api} services={services} onCreated={() => setReload((n) => n + 1)} />
-          <FilterBar filters={filters} dispatch={dispatch} />
-          {error && <p className="error">Could not load incidents: {error}</p>}
-          <IncidentList incidents={data.incidents} total={data.total} />
-        </>
-      )}
-      {route.name === 'incident' && <IncidentDetail api={api} id={route.id} />}
-      {route.name === 'not-found' && <p>That page does not exist. <a href="#/">Back to incidents</a></p>}
-    </main>
+    <>
+      {canRespond(user) && <IncidentForm api={api} services={services} onCreated={() => setReload((n) => n + 1)} />}
+      <FilterBar filters={filters} dispatch={dispatch} />
+      {error && <p className="error">Could not load incidents: {error}</p>}
+      <IncidentList incidents={data.incidents} total={data.total} />
+    </>
+  );
+}
+
+export default function App() {
+  const [session, dispatchSession] = useReducer(sessionReducer, initialSession);
+  const onUnauthorized = useCallback(() => dispatchSession({ type: 'expired' }), []);
+  const api = useMemo(() => createApi({ onUnauthorized }), [onUnauthorized]);
+  const route = useHashRoute();
+
+  useEffect(() => {
+    api.me().then(
+      (r) => dispatchSession({ type: 'loaded', user: r.user }),
+      () => dispatchSession({ type: 'loaded', user: null }),
+    );
+  }, [api]);
+
+  async function signOut() {
+    await api.logout().catch(() => {});
+    dispatchSession({ type: 'signed_out' });
+  }
+
+  const publicStatus = route.name === 'status';
+  let body;
+  if (publicStatus) body = <StatusPage api={api} />;
+  else if (session.status === 'loading') body = <p>Loading...</p>;
+  else if (session.status === 'anonymous') {
+    body = <Login api={api} notice={session.notice} onSignedIn={(user) => dispatchSession({ type: 'signed_in', user })} />;
+  } else if (route.name === 'incident') body = <IncidentDetail api={api} id={route.id} />;
+  else if (route.name === 'list') body = <Incidents api={api} user={session.user} />;
+  else
+    body = (
+      <p>
+        That page does not exist. <a href="#/">Back to incidents</a>
+      </p>
+    );
+
+  return (
+    <AuthContext.Provider value={{ user: session.user }}>
+      <main className="page">
+        <header className="top">
+          <h1>Incident tracker</h1>
+          <nav>
+            <a href="#/">Incidents</a>
+            <a href="#/status">Public status page</a>
+            {session.user && (
+              <>
+                <span className="who">{session.user.name}</span>
+                <button type="button" className="link" onClick={signOut}>
+                  Sign out
+                </button>
+              </>
+            )}
+          </nav>
+        </header>
+        {body}
+      </main>
+    </AuthContext.Provider>
   );
 }

@@ -24,9 +24,17 @@ export function buildQuery(filters = {}) {
   return text ? `?${text}` : '';
 }
 
-export function createApi({ fetchImpl = (...args) => globalThis.fetch(...args), base = '' } = {}) {
+// Calls to these paths can legitimately answer 401 without meaning "your
+// session ran out", so they don't trigger onUnauthorized.
+const AUTH_PATHS = ['/api/auth/login', '/api/auth/me', '/api/auth/logout'];
+
+export function createApi({
+  fetchImpl = (...args) => globalThis.fetch(...args),
+  base = '',
+  onUnauthorized = () => {},
+} = {}) {
   async function request(method, path, body) {
-    const init = { method, headers: { accept: 'application/json' } };
+    const init = { method, credentials: 'same-origin', headers: { accept: 'application/json' } };
     if (body !== undefined) {
       init.headers['content-type'] = 'application/json';
       init.body = JSON.stringify(body);
@@ -36,6 +44,7 @@ export function createApi({ fetchImpl = (...args) => globalThis.fetch(...args), 
     const type = res.headers.get('content-type') ?? '';
     const payload = type.includes('json') ? await res.json() : await res.text();
     if (!res.ok) {
+      if (res.status === 401 && !AUTH_PATHS.includes(path)) onUnauthorized();
       const error = payload && payload.error ? payload.error : {};
       throw new ApiError(res.status, error.message ?? `request failed (${res.status})`, error.details);
     }
@@ -43,6 +52,9 @@ export function createApi({ fetchImpl = (...args) => globalThis.fetch(...args), 
   }
 
   return {
+    login: (email, password) => request('POST', '/api/auth/login', { email, password }),
+    logout: () => request('POST', '/api/auth/logout'),
+    me: () => request('GET', '/api/auth/me'),
     listIncidents: (filters) => request('GET', `/api/incidents${buildQuery(filters)}`),
     getIncident: (id) => request('GET', `/api/incidents/${encodeURIComponent(id)}`),
     createIncident: (input) => request('POST', '/api/incidents', input),
