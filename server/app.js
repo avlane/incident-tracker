@@ -13,6 +13,7 @@ import { registerOnCallRoutes } from './handlers/oncall.js';
 import { registerPostmortemRoutes } from './handlers/postmortem.js';
 import { registerServiceRoutes } from './handlers/services.js';
 import { registerStatusRoutes } from './handlers/status.js';
+import { registerWebhookRoutes } from './handlers/webhooks.js';
 
 const modules = [
   registerAuthRoutes,
@@ -23,6 +24,7 @@ const modules = [
   registerOnCallRoutes,
   registerExportRoutes,
   registerStatusRoutes,
+  registerWebhookRoutes,
 ];
 
 export function createApp({
@@ -33,6 +35,8 @@ export function createApp({
   requireAuth = true,
   trustProxy = false,
   rateLimit = {},
+  // allowPrivate lets webhooks target http:// and internal addresses (development only).
+  webhookPolicy = { allowPrivate: false },
 } = {}) {
   const router = createRouter();
   const auth = createAuthService({ store, clock, hashParams });
@@ -49,7 +53,7 @@ export function createApp({
     : null;
   sweeper?.unref();
   const auditLog = createAuditLog({ store, clock });
-  const deps = { store, clock, logger, auth, limiters, auditLog };
+  const deps = { store, clock, logger, auth, limiters, auditLog, webhookPolicy };
   for (const register of modules) register(router, deps);
 
   // Handlers return { status?, body?, text?, contentType?, headers? }.

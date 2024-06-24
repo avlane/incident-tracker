@@ -5,7 +5,11 @@ import { openStore } from './store/index.js';
 
 const config = loadConfig();
 const store = await openStore(config);
-const app = createApp({ store, trustProxy: config.trustProxy });
+const app = createApp({
+  store,
+  trustProxy: config.trustProxy,
+  webhookPolicy: { allowPrivate: config.allowPrivateWebhooks },
+});
 const server = createServer((req, res) => app.handle(req, res));
 
 server.listen(config.port, config.host, () => {

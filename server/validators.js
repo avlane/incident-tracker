@@ -1,5 +1,7 @@
 import { ROLES } from './auth.js';
 import { IMPACTS, SEVERITIES, STATUSES } from './incidents.js';
+import { webhookUrlProblem } from './urlguard.js';
+import { EVENTS } from './webhooks.js';
 
 // Validators return { value, errors }. `value` is the cleaned input and is
 // only meaningful when `errors` is empty.
@@ -192,6 +194,31 @@ export function validateUserInput(input) {
   else errors.push({ field: 'role', message: `role must be one of ${ROLES.join(', ')}` });
   if (typeof input.password === 'string') value.password = input.password;
   else errors.push({ field: 'password', message: 'password is required' });
+  for (const key of Object.keys(value)) if (value[key] === undefined) delete value[key];
+  return { value, errors };
+}
+
+export function validateWebhookInput(input, { partial = false, allowPrivate = false } = {}) {
+  const errors = [];
+  if (input === null || typeof input !== 'object' || Array.isArray(input)) {
+    return { value: null, errors: [{ field: '', message: 'body must be an object' }] };
+  }
+  const value = {};
+  if (input.url !== undefined || !partial) {
+    const problem = typeof input.url === 'string' ? webhookUrlProblem(input.url, { allowPrivate }) : 'url is required';
+    if (problem) errors.push({ field: 'url', message: problem });
+    else value.url = new URL(input.url).toString();
+  }
+  value.description = text(input, 'description', { max: 200 }, errors);
+  if (input.events !== undefined) {
+    const ok = Array.isArray(input.events) && input.events.every((e) => EVENTS.includes(e));
+    if (ok) value.events = [...new Set(input.events)];
+    else errors.push({ field: 'events', message: `events must be a list drawn from ${EVENTS.join(', ')}` });
+  }
+  if (input.active !== undefined) {
+    if (typeof input.active === 'boolean') value.active = input.active;
+    else errors.push({ field: 'active', message: 'active must be true or false' });
+  }
   for (const key of Object.keys(value)) if (value[key] === undefined) delete value[key];
   return { value, errors };
 }
