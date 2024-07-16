@@ -2,8 +2,10 @@ import { HttpError, tooManyRequests } from './errors.js';
 import { bearerToken, clientIp, parseCookies, readJson, sendJson, sendText } from './http.js';
 import { createRateLimiter } from './ratelimit.js';
 import { createAuditLog } from './audit.js';
+import { createDispatcher } from './dispatcher.js';
 import { createAuthService, hasRole } from './auth.js';
 import { requiredRole } from './policy.js';
+import { toPublicIncident } from './statuspage.js';
 import { createRouter } from './router.js';
 import { registerAuditRoutes } from './handlers/audit.js';
 import { registerAuthRoutes, SESSION_COOKIE } from './handlers/auth.js';
@@ -37,6 +39,7 @@ export function createApp({
   rateLimit = {},
   // allowPrivate lets webhooks target http:// and internal addresses (development only).
   webhookPolicy = { allowPrivate: false },
+  dispatcherOptions = {},
 } = {}) {
   const router = createRouter();
   const auth = createAuthService({ store, clock, hashParams });
@@ -53,7 +56,8 @@ export function createApp({
     : null;
   sweeper?.unref();
   const auditLog = createAuditLog({ store, clock });
-  const deps = { store, clock, logger, auth, limiters, auditLog, webhookPolicy };
+  const dispatcher = createDispatcher({ store, clock, logger, ...dispatcherOptions });
+  const deps = { store, clock, logger, auth, limiters, auditLog, webhookPolicy, dispatcher };
   for (const register of modules) register(router, deps);
 
   // Handlers return { status?, body?, text?, contentType?, headers? }.
@@ -87,6 +91,8 @@ export function createApp({
       token,
       user,
       // Handlers call this after a change succeeds: ctx.audit('incident.create', id, { ... }).
+      // Webhooks get the same public view the status page shows, never the raw incident.
+      notify: (type, incident) => dispatcher.emit(type, toPublicIncident(incident, store.list('services'))),
       audit: (action, target, meta, actor = user) => auditLog.record({ actor, action, target, ip, meta }),
       req,
       url,
@@ -124,5 +130,5 @@ export function createApp({
     }
   }
 
-  return { handle, router, auth, auditLog, close: () => clearInterval(sweeper) };
+  return { handle, router, auth, auditLog, idle: () => dispatcher.idle(), close: () => clearInterval(sweeper) };
 }

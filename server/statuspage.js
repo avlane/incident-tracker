@@ -14,7 +14,7 @@ const OVERALL_LABEL = {
 
 const worst = (a, b) => (COMPONENT_STATUSES.indexOf(a) >= COMPONENT_STATUSES.indexOf(b) ? a : b);
 
-function toPublicIncident(incident, services) {
+export function toPublicIncident(incident, services) {
   const updates = incident.updates
     .filter((u) => u.visibility !== 'internal')
     .map((u) => ({ at: u.at, status: u.status, message: u.message }))

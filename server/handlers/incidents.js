@@ -39,6 +39,7 @@ export function registerIncidentRoutes(router, { store, clock }) {
     const incident = createIncident(value, { id, now });
     store.put('incidents', incident);
     ctx.audit('incident.create', incident.id, { severity: incident.severity, title: incident.title });
+    if (incident.public) ctx.notify('incident.created', incident);
     return { status: 201, body: { incident } };
   });
 
@@ -72,6 +73,10 @@ export function registerIncidentRoutes(router, { store, clock }) {
       severity: next.severity,
       visibility: next.updates.at(-1).visibility,
     });
+    // Internal updates and private incidents never leave the building.
+    if (next.public && next.updates.at(-1).visibility === 'public') {
+      ctx.notify(next.status === 'resolved' && incident.status !== 'resolved' ? 'incident.resolved' : 'incident.updated', next);
+    }
     return { status: 201, body: { incident: next } };
   });
 }
