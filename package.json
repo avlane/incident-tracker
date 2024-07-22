@@ -11,6 +11,8 @@
   },
   "scripts": {
     "start": "node server/index.js",
-    "test": "node --test"
+    "start:sqlite": "STORE=sqlite node --experimental-sqlite server/index.js",
+    "test": "node --test",
+    "test:sqlite": "node --experimental-sqlite --test"
   }
 }
