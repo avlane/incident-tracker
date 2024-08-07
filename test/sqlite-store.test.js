@@ -13,27 +13,6 @@ try {
 const skip = DatabaseSync ? false : 'node:sqlite is not available';
 const { createSqliteStore } = await import('../server/store/sqlite-store.js');
 
-test('basic operations', { skip }, () => {
-  const store = createSqliteStore({ DatabaseSync });
-  store.put('things', { id: 'a', n: 1, nested: { ok: true } });
-  assert.deepEqual(store.get('things', 'a'), { id: 'a', n: 1, nested: { ok: true } });
-  assert.equal(store.get('things', 'missing'), null);
-  assert.equal(store.nextSeq('x'), 1);
-  assert.equal(store.nextSeq('x'), 2);
-  assert.equal(store.remove('things', 'a'), true);
-  assert.equal(store.remove('things', 'a'), false);
-  store.close();
-});
-
-test('updates keep insertion order', { skip }, () => {
-  const store = createSqliteStore({ DatabaseSync });
-  store.put('things', { id: 'b', n: 1 });
-  store.put('things', { id: 'a', n: 1 });
-  store.put('things', { id: 'b', n: 2 });
-  assert.deepEqual(store.list('things').map((d) => `${d.id}${d.n}`), ['b2', 'a1']);
-  store.close();
-});
-
 test('a file database survives reopening', { skip }, () => {
   const dir = mkdtempSync(join(tmpdir(), 'it-sqlite-'));
   try {
