@@ -1,5 +1,6 @@
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { migrate } from './migrations.js';
 
 // The same small interface as the JSON store, on top of node:sqlite.
 //
@@ -10,20 +11,6 @@ import { dirname } from 'node:path';
 // Documents are stored as JSON text in one table. That keeps the two stores
 // interchangeable; it gives up SQL-level querying in exchange.
 
-const SCHEMA = `
-  CREATE TABLE IF NOT EXISTS docs (
-    n INTEGER PRIMARY KEY,
-    collection TEXT NOT NULL,
-    id TEXT NOT NULL,
-    doc TEXT NOT NULL,
-    UNIQUE (collection, id)
-  );
-  CREATE TABLE IF NOT EXISTS seq (
-    name TEXT PRIMARY KEY,
-    value INTEGER NOT NULL
-  );
-`;
-
 export function createSqliteStore({ DatabaseSync, path = ':memory:' }) {
   if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });
   const db = new DatabaseSync(path);
@@ -31,7 +18,7 @@ export function createSqliteStore({ DatabaseSync, path = ':memory:' }) {
     db.exec('PRAGMA journal_mode = WAL');
     db.exec('PRAGMA synchronous = NORMAL');
   }
-  db.exec(SCHEMA);
+  migrate(db);
 
   const statements = {
     list: db.prepare('SELECT doc FROM docs WHERE collection = ? ORDER BY n'),
