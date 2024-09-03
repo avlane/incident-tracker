@@ -64,6 +64,17 @@ export function createJsonStore({ path = null } = {}) {
       return data.seq[name];
     },
 
+    // Whole-database copy, used by `cli.js migrate-store`.
+    exportAll: () => structuredClone(data),
+
+    importAll(dump) {
+      for (const [name, docs] of Object.entries(dump.collections)) {
+        for (const doc of Object.values(docs)) collection(name)[doc.id] = structuredClone(doc);
+      }
+      for (const [name, value] of Object.entries(dump.seq)) data.seq[name] = value;
+      flush();
+    },
+
     close() {},
   };
 }

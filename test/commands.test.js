@@ -55,3 +55,35 @@ test('list-users and unknown commands', async () => {
   assert.match(lines[0], /viewer\s+a@example\.com\s+Ann/);
   await assert.rejects(runCommand(['frobnicate'], deps), /usage:/);
 });
+
+test('migrate-store copies a JSON database into an empty SQLite one', async () => {
+  const { createJsonStore } = await import('../server/store/json-store.js');
+  let DatabaseSync;
+  try {
+    ({ DatabaseSync } = await import('node:sqlite'));
+  } catch {
+    return; // node:sqlite unavailable here
+  }
+  const { createSqliteStore } = await import('../server/store/sqlite-store.js');
+  const source = createJsonStore();
+  source.put('incidents', { id: 'INC-0001', title: 'a' });
+  source.put('services', { id: 'checkout' });
+  source.nextSeq('incident');
+  const target = createSqliteStore({ DatabaseSync });
+  const lines = [];
+  // the command closes what it opens, so hand it wrappers that keep the data readable
+  const keepOpen = (store) => ({ ...store, close() {} });
+  const deps = {
+    out: (l) => lines.push(l),
+    openJson: async () => keepOpen(source),
+    openSqlite: async () => keepOpen(target),
+  };
+  assert.equal(await runCommand(['migrate-store', '--from', 'a.json', '--to', 'b.db'], deps), 0);
+  assert.deepEqual(lines, ['incidents: 1', 'services: 1', 'done']);
+  assert.equal(target.get('incidents', 'INC-0001').title, 'a');
+  assert.equal(target.nextSeq('incident'), 2);
+
+  await assert.rejects(runCommand(['migrate-store', '--from', 'a.json', '--to', 'b.db'], deps), /already contains data/);
+  await assert.rejects(runCommand(['migrate-store', '--from', 'a.json'], deps), /--from and --to are required/);
+  target.close();
+});

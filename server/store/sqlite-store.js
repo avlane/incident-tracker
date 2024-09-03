@@ -55,6 +55,32 @@ export function createSqliteStore({ DatabaseSync, path = ':memory:' }) {
 
     nextSeq: (name) => statements.seq.get(name).value,
 
+    exportAll() {
+      const dump = { seq: {}, collections: {} };
+      for (const row of db.prepare('SELECT collection, doc FROM docs ORDER BY n').all()) {
+        const doc = JSON.parse(row.doc);
+        (dump.collections[row.collection] ??= {})[doc.id] = doc;
+      }
+      for (const row of db.prepare('SELECT name, value FROM seq').all()) dump.seq[row.name] = row.value;
+      return dump;
+    },
+
+    // All or nothing: a failure part-way leaves the database as it was.
+    importAll(dump) {
+      db.exec('BEGIN');
+      try {
+        for (const [name, docs] of Object.entries(dump.collections)) {
+          for (const doc of Object.values(docs)) statements.put.run(name, doc.id, JSON.stringify(doc));
+        }
+        const setSeq = db.prepare('INSERT INTO seq (name, value) VALUES (?, ?) ON CONFLICT (name) DO UPDATE SET value = excluded.value');
+        for (const [name, value] of Object.entries(dump.seq)) setSeq.run(name, value);
+        db.exec('COMMIT');
+      } catch (err) {
+        db.exec('ROLLBACK');
+        throw err;
+      }
+    },
+
     close() {
       db.close();
     },

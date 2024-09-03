@@ -94,3 +94,24 @@ for (const { name, make, skip } of backends) {
     assert.equal(srv.app.auditLog.list().entries.length >= 3, true);
   });
 }
+
+for (const { name, make, skip } of backends) {
+  test(`${name}: exportAll and importAll copy documents and sequences`, { skip }, () => {
+    const source = make();
+    source.put('incidents', { id: 'INC-0001', title: 'a' });
+    source.put('incidents', { id: 'INC-0002', title: 'b' });
+    source.put('users', { id: 'usr_1' });
+    source.nextSeq('incident');
+    source.nextSeq('incident');
+
+    for (const other of backends.filter((b) => !b.skip)) {
+      const target = other.make();
+      target.importAll(source.exportAll());
+      assert.deepEqual(target.list('incidents').map((d) => d.id), ['INC-0001', 'INC-0002']);
+      assert.equal(target.get('users', 'usr_1').id, 'usr_1');
+      assert.equal(target.nextSeq('incident'), 3, `${name} -> ${other.name}`);
+      target.close();
+    }
+    source.close();
+  });
+}

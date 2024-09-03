@@ -3,11 +3,12 @@ import { ROLES } from './auth.js';
 
 const USAGE = `usage:
   cli.js create-user --email <email> --name <name> --role <${ROLES.join('|')}> (--password-stdin | env INCIDENT_PASSWORD)
-  cli.js list-users`;
+  cli.js list-users
+  cli.js migrate-store --from <json file> --to <sqlite file>`;
 
 // Command implementations take their collaborators as arguments so they can be
 // tested without touching the real store, stdin or process.env.
-export async function runCommand(argv, { auth, readStdin, env = {}, out = () => {} }) {
+export async function runCommand(argv, { auth, readStdin, env = {}, out = () => {}, openJson, openSqlite }) {
   const [command, ...rest] = argv;
   switch (command) {
     case 'create-user': {
@@ -31,6 +32,25 @@ export async function runCommand(argv, { auth, readStdin, env = {}, out = () => 
     }
     case 'list-users': {
       for (const u of auth.listUsers()) out(`${u.id}  ${u.role.padEnd(9)} ${u.email}  ${u.name}${u.disabled ? '  [disabled]' : ''}`);
+      return 0;
+    }
+    case 'migrate-store': {
+      const { values } = parseArgs({ args: rest, options: { from: { type: 'string' }, to: { type: 'string' } } });
+      if (!values.from || !values.to) throw new Error(`--from and --to are required\n${USAGE}`);
+      const source = await openJson(values.from);
+      const target = await openSqlite(values.to);
+      try {
+        const dump = source.exportAll();
+        if (Object.values(target.exportAll().collections).some((docs) => Object.keys(docs).length > 0)) {
+          throw new Error(`${values.to} already contains data; migrate into an empty database`);
+        }
+        target.importAll(dump);
+        for (const [name, docs] of Object.entries(dump.collections)) out(`${name}: ${Object.keys(docs).length}`);
+        out('done');
+      } finally {
+        source.close();
+        target.close();
+      }
       return 0;
     }
     default:
