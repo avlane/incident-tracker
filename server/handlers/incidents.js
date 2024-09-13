@@ -29,16 +29,20 @@ export function registerIncidentRoutes(router, { store, clock }) {
     const { value, errors } = validateIncidentInput(await ctx.readBody());
     if (errors.length > 0) throw unprocessable(errors);
     checkAffected(value.affected);
-    const id = formatIncidentId(store.nextSeq('incident'));
     const now = clock();
     if (!value.commander) {
       const first = store.list('oncall').sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1))[0];
       const current = first ? whoIsOnCall(first, now) : null;
       if (current) value.commander = current.who;
     }
-    const incident = createIncident(value, { id, now });
-    store.put('incidents', incident);
-    ctx.audit('incident.create', incident.id, { severity: incident.severity, title: incident.title });
+    // One transaction: if the audit write fails, the incident and its id are undone too.
+    const incident = store.transaction(() => {
+      const id = formatIncidentId(store.nextSeq('incident'));
+      const created = createIncident(value, { id, now });
+      store.put('incidents', created);
+      ctx.audit('incident.create', created.id, { severity: created.severity, title: created.title });
+      return created;
+    });
     if (incident.public) ctx.notify('incident.created', incident);
     return { status: 201, body: { incident } };
   });
@@ -67,11 +71,13 @@ export function registerIncidentRoutes(router, { store, clock }) {
       ...value,
       author: ctx.user?.name ?? value.author,
     });
-    store.put('incidents', next);
-    ctx.audit('incident.update', next.id, {
-      status: next.status,
-      severity: next.severity,
-      visibility: next.updates.at(-1).visibility,
+    store.transaction(() => {
+      store.put('incidents', next);
+      ctx.audit('incident.update', next.id, {
+        status: next.status,
+        severity: next.severity,
+        visibility: next.updates.at(-1).visibility,
+      });
     });
     // Internal updates and private incidents never leave the building.
     if (next.public && next.updates.at(-1).visibility === 'public') {

@@ -115,3 +115,88 @@ for (const { name, make, skip } of backends) {
     source.close();
   });
 }
+
+for (const { name, make, skip } of backends) {
+  test(`${name}: a transaction commits when it returns and rolls back when it throws`, { skip }, () => {
+    const store = make();
+    store.put('things', { id: 'keep' });
+    const value = store.transaction(() => {
+      store.put('things', { id: 'a' });
+      store.nextSeq('n');
+      return 42;
+    });
+    assert.equal(value, 42);
+    assert.equal(store.list('things').length, 2);
+
+    assert.throws(
+      () =>
+        store.transaction(() => {
+          store.put('things', { id: 'b' });
+          store.put('things', { id: 'keep', changed: true });
+          store.remove('things', 'a');
+          store.nextSeq('n');
+          throw new Error('boom');
+        }),
+      /boom/,
+    );
+    assert.deepEqual(store.list('things').map((d) => d.id), ['keep', 'a']);
+    assert.equal(store.get('things', 'keep').changed, undefined);
+    assert.equal(store.nextSeq('n'), 2, 'the sequence was rolled back too');
+    store.close();
+  });
+
+  test(`${name}: nested transactions roll back independently`, { skip }, () => {
+    const store = make();
+    store.transaction(() => {
+      store.put('things', { id: 'outer' });
+      assert.throws(() =>
+        store.transaction(() => {
+          store.put('things', { id: 'inner' });
+          throw new Error('inner failed');
+        }),
+      );
+      store.put('things', { id: 'after' });
+    });
+    assert.deepEqual(store.list('things').map((d) => d.id), ['outer', 'after']);
+
+    assert.throws(() =>
+      store.transaction(() => {
+        store.put('things', { id: 'doomed' });
+        store.transaction(() => store.put('things', { id: 'doomed-inner' }));
+        throw new Error('outer failed');
+      }),
+    );
+    assert.equal(store.get('things', 'doomed'), null);
+    assert.equal(store.get('things', 'doomed-inner'), null);
+    store.close();
+  });
+
+  test(`${name}: async transaction callbacks are refused`, { skip }, () => {
+    const store = make();
+    assert.throws(() => store.transaction(async () => {}), TypeError);
+    store.put('things', { id: 'still-works' });
+    assert.equal(store.list('things').length, 1);
+    store.close();
+  });
+
+  test(`${name}: a failed audit write leaves no incident and does not burn an id`, { skip }, async (t) => {
+    const store = make();
+    const realPut = store.put.bind(store);
+    let failAudit = true;
+    store.put = (collection, doc) => {
+      if (collection === 'audit' && failAudit) throw new Error('disk full');
+      return realPut(collection, doc);
+    };
+    const srv = await startTestServer({ store });
+    t.after(async () => {
+      await srv.close();
+      store.close();
+    });
+    const failed = await srv.api('POST', '/api/incidents', { title: 'x', severity: 'sev3' });
+    assert.equal(failed.status, 500);
+    assert.equal(store.list('incidents').length, 0);
+    failAudit = false;
+    const ok = await srv.api('POST', '/api/incidents', { title: 'y', severity: 'sev3' });
+    assert.equal(ok.json.incident.id, 'INC-0001');
+  });
+}

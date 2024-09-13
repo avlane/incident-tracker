@@ -33,8 +33,33 @@ export function createSqliteStore({ DatabaseSync, path = ':memory:' }) {
     ),
   };
 
+  let depth = 0;
+
   return {
     kind: 'sqlite',
+
+    // Runs fn (synchronously) and undoes every write it made if it throws.
+    // The outermost level is a real transaction, inner levels are savepoints.
+    transaction(fn) {
+      const begin = depth === 0 ? 'BEGIN' : `SAVEPOINT sp${depth}`;
+      const commit = depth === 0 ? 'COMMIT' : `RELEASE sp${depth}`;
+      const rollback = depth === 0 ? 'ROLLBACK' : `ROLLBACK TO sp${depth}; RELEASE sp${depth}`;
+      db.exec(begin);
+      depth++;
+      try {
+        const result = fn();
+        if (result && typeof result.then === 'function') {
+          throw new TypeError('transaction callbacks must be synchronous');
+        }
+        depth--;
+        db.exec(commit);
+        return result;
+      } catch (err) {
+        depth--;
+        db.exec(rollback);
+        throw err;
+      }
+    },
 
     list: (name) => statements.list.all(name).map((row) => JSON.parse(row.doc)),
 
@@ -67,18 +92,13 @@ export function createSqliteStore({ DatabaseSync, path = ':memory:' }) {
 
     // All or nothing: a failure part-way leaves the database as it was.
     importAll(dump) {
-      db.exec('BEGIN');
-      try {
+      this.transaction(() => {
         for (const [name, docs] of Object.entries(dump.collections)) {
           for (const doc of Object.values(docs)) statements.put.run(name, doc.id, JSON.stringify(doc));
         }
         const setSeq = db.prepare('INSERT INTO seq (name, value) VALUES (?, ?) ON CONFLICT (name) DO UPDATE SET value = excluded.value');
         for (const [name, value] of Object.entries(dump.seq)) setSeq.run(name, value);
-        db.exec('COMMIT');
-      } catch (err) {
-        db.exec('ROLLBACK');
-        throw err;
-      }
+      });
     },
 
     close() {

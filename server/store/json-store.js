@@ -17,8 +17,12 @@ export function createJsonStore({ path = null } = {}) {
     data = JSON.parse(readFileSync(path, 'utf8'));
   }
 
+  // While a transaction is open, writes stay in memory and the file is written
+  // once when the outermost one commits.
+  const snapshots = [];
+
   function flush() {
-    if (!path) return;
+    if (!path || snapshots.length > 0) return;
     mkdirSync(dirname(path), { recursive: true });
     const tmp = `${path}.tmp`;
     writeFileSync(tmp, JSON.stringify(data));
@@ -62,6 +66,26 @@ export function createJsonStore({ path = null } = {}) {
       data.seq[name] = (data.seq[name] ?? 0) + 1;
       flush();
       return data.seq[name];
+    },
+
+    // Runs fn (synchronously) and undoes every write it made if it throws.
+    // Transactions nest: an inner failure that the outer code catches rolls
+    // back only the inner work.
+    transaction(fn) {
+      snapshots.push(structuredClone(data));
+      let result;
+      try {
+        result = fn();
+        if (result && typeof result.then === 'function') {
+          throw new TypeError('transaction callbacks must be synchronous');
+        }
+      } catch (err) {
+        data = snapshots.pop();
+        throw err;
+      }
+      snapshots.pop();
+      flush();
+      return result;
     },
 
     // Whole-database copy, used by `cli.js migrate-store`.
