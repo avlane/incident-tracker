@@ -19,14 +19,49 @@ separate package under `client/` (React and Vite).
 
 ## Running the API
 
-Needs Node 18 or newer.
+Needs Node 18 or newer (22.5 or newer for the SQLite store).
 
 ```
 npm start
 ```
 
-Environment variables: `PORT` (default 3000), `HOST` (default 127.0.0.1) and
-`DATA_FILE` (default `data/incidents.json`).
+Settings come from environment variables:
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `PORT`, `HOST` | `3000`, `127.0.0.1` | Where to listen |
+| `STORE` | `json` | `json` or `sqlite` |
+| `DATA_FILE` | `data/incidents.json` | JSON store location |
+| `DB_FILE` | `data/incidents.db` | SQLite store location |
+| `TRUST_PROXY` | off | Set to `1` to believe `X-Forwarded-For` (rate limits and audit use it) |
+| `ALLOW_PRIVATE_WEBHOOKS` | off | Set to `1` to allow `http://` and internal webhook targets (development) |
+
+### Storage
+
+The default store keeps everything in memory and mirrors it to one JSON file,
+written atomically (temp file then rename). It is fine for a small team and
+trivial to inspect.
+
+The SQLite store uses the `node:sqlite` module built into Node 22.5 and newer.
+On Node 22.5 to 22.12 it sits behind a flag:
+
+```
+npm run start:sqlite          # STORE=sqlite node --experimental-sqlite server/index.js
+npm run test:sqlite           # runs the SQLite tests on those versions
+```
+
+Both stores implement the same small interface (`list`, `get`, `put`, `remove`,
+`nextSeq`, `transaction`) and one shared contract test runs against both. The
+SQLite schema is versioned with `PRAGMA user_version` and numbered migrations.
+
+To move an existing JSON database over:
+
+```
+node --experimental-sqlite server/cli.js migrate-store --from data/incidents.json --to data/incidents.db
+STORE=sqlite npm run start:sqlite
+```
+
+The target must be empty. Without `STORE=sqlite`, the JSON store is used.
 
 ```
 npm test
