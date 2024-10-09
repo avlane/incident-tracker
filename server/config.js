@@ -16,6 +16,7 @@ export function loadConfig(env = process.env) {
     host: env.HOST ?? '127.0.0.1',
     trustProxy: env.TRUST_PROXY === '1',
     allowPrivateWebhooks: env.ALLOW_PRIVATE_WEBHOOKS === '1',
+    staticDir: env.STATIC_DIR ?? 'client/dist',
     store,
     dbFile: env.DB_FILE ?? 'data/incidents.db',
     dataFile: env.DATA_FILE ?? 'data/incidents.json',

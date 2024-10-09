@@ -81,3 +81,12 @@ test('updates are attributed to the signed-in user, not the request body', async
   const res = await responder('POST', '/api/incidents/INC-0001/updates', { message: 'looking', author: 'Someone Else' });
   assert.equal(res.json.incident.updates[1].author, 'Test responder');
 });
+
+test('signed-out callers get 401 for unknown paths too, not a hint that the path is missing', async (t) => {
+  const srv = await startTestServer({ auth: false });
+  t.after(() => srv.close());
+  assert.equal((await srv.api('GET', '/api/nothing-here')).status, 401);
+  const signedIn = await startTestServer();
+  t.after(() => signedIn.close());
+  assert.equal((await signedIn.api('GET', '/api/nothing-here')).status, 404);
+});

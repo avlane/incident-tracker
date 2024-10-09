@@ -8,6 +8,7 @@ test('defaults', () => {
     host: '127.0.0.1',
     trustProxy: false,
     allowPrivateWebhooks: false,
+    staticDir: 'client/dist',
     store: 'json',
     dbFile: 'data/incidents.db',
     dataFile: 'data/incidents.json',

@@ -7,6 +7,7 @@ import { createAuthService, hasRole } from './auth.js';
 import { requiredRole } from './policy.js';
 import { toPublicIncident } from './statuspage.js';
 import { createRouter } from './router.js';
+import { createStaticHandler } from './static.js';
 import { registerAuditRoutes } from './handlers/audit.js';
 import { registerAuthRoutes, SESSION_COOKIE } from './handlers/auth.js';
 import { registerExportRoutes } from './handlers/export.js';
@@ -40,6 +41,8 @@ export function createApp({
   // allowPrivate lets webhooks target http:// and internal addresses (development only).
   webhookPolicy = { allowPrivate: false },
   dispatcherOptions = {},
+  // Directory holding the built client (client/dist); omit to serve the API only.
+  staticDir = null,
 } = {}) {
   const router = createRouter();
   const auth = createAuthService({ store, clock, hashParams });
@@ -70,13 +73,7 @@ export function createApp({
       res.setHeader('ratelimit-remaining', String(verdict.remaining));
       if (!verdict.allowed) throw tooManyRequests(verdict.retryAfterSeconds);
     }
-    const found = router.match(req.method, url.pathname);
-    if (!found) throw new HttpError(404, 'not found');
-    if (found.allowed) {
-      const error = new HttpError(405, 'method not allowed');
-      error.headers = { allow: found.allowed.join(', ') };
-      throw error;
-    }
+    // Checked before routing, so signed-out callers can't probe which paths exist.
     const needed = requireAuth ? requiredRole(req.method, url.pathname) : 'public';
     const token = bearerToken(req.headers.authorization) ?? parseCookies(req.headers.cookie)[SESSION_COOKIE] ?? null;
     const user = auth.authenticate(token)?.user ?? null;
@@ -84,15 +81,22 @@ export function createApp({
       if (!user) throw new HttpError(401, 'sign in required');
       if (!hasRole(user, needed)) throw new HttpError(403, `requires the ${needed} role`);
     }
+    const found = router.match(req.method, url.pathname);
+    if (!found) throw new HttpError(404, 'not found');
+    if (found.allowed) {
+      const error = new HttpError(405, 'method not allowed');
+      error.headers = { allow: found.allowed.join(', ') };
+      throw error;
+    }
     let parsed;
     const ctx = {
       ...deps,
       ip,
       token,
       user,
-      // Handlers call this after a change succeeds: ctx.audit('incident.create', id, { ... }).
       // Webhooks get the same public view the status page shows, never the raw incident.
       notify: (type, incident) => dispatcher.emit(type, toPublicIncident(incident, store.list('services'))),
+      // Handlers call this after a change succeeds: ctx.audit('incident.create', id, { ... }).
       audit: (action, target, meta, actor = user) => auditLog.record({ actor, action, target, ip, meta }),
       req,
       url,
@@ -115,8 +119,15 @@ export function createApp({
     }
   }
 
+  const serveStatic = staticDir ? createStaticHandler(staticDir) : null;
+
   async function handle(req, res) {
     try {
+      const { pathname } = new URL(req.url, 'http://localhost');
+      if (serveStatic && !pathname.startsWith('/api/')) {
+        if (await serveStatic(req, res, pathname)) return;
+        throw new HttpError(404, 'not found');
+      }
       await dispatch(req, res);
     } catch (err) {
       if (err instanceof HttpError) {
