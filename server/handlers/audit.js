@@ -1,6 +1,8 @@
 import { badRequest } from '../errors.js';
 
 export function registerAuditRoutes(router, { auditLog }) {
+  router.get('/api/audit/verify', async () => ({ body: auditLog.verify() }));
+
   router.get('/api/audit', async ({ query }) => {
     const limit = query.get('limit') === null ? 50 : Number(query.get('limit'));
     if (!Number.isInteger(limit) || limit < 1 || limit > 200) {

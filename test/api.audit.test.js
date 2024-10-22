@@ -71,3 +71,19 @@ test('GET /api/audit is admin-only and supports filters and paging', async (t) =
   assert.equal((await srv.api('GET', '/api/audit?limit=0')).status, 400);
   assert.equal((await srv.api('GET', '/api/audit?from=never')).status, 400);
 });
+
+test('GET /api/audit/verify reports on the chain', async (t) => {
+  const srv = await startTestServer();
+  t.after(() => srv.close());
+  await srv.api('POST', '/api/incidents', { title: 'a', severity: 'sev3' });
+  await srv.api('POST', '/api/incidents', { title: 'b', severity: 'sev3' });
+  const ok = await srv.api('GET', '/api/audit/verify');
+  assert.equal(ok.status, 200);
+  assert.deepEqual(ok.json, { ok: true, checked: 2 });
+
+  const first = srv.store.get('audit', '00000001');
+  srv.store.put('audit', { ...first, target: 'INC-9999' });
+  const bad = await srv.api('GET', '/api/audit/verify');
+  assert.equal(bad.json.ok, false);
+  assert.equal(bad.json.firstBadId, '00000001');
+});

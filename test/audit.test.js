@@ -54,3 +54,54 @@ test('time range filter', () => {
   const mid = audit.list({ from: '2024-04-19T08:01:00.000Z', to: '2024-04-19T08:02:00.000Z' });
   assert.equal(mid.entries.length, 2);
 });
+
+test('entries are chained and a clean log verifies', () => {
+  const { audit } = setup();
+  const a = audit.record({ actor: sam, action: 'x.one' });
+  const b = audit.record({ actor: sam, action: 'x.two' });
+  assert.equal(a.prev, '0'.repeat(64));
+  assert.equal(b.prev, a.hash);
+  assert.match(a.hash, /^[0-9a-f]{64}$/);
+  assert.deepEqual(audit.verify(), { ok: true, checked: 2 });
+});
+
+test('an empty log verifies', () => {
+  assert.deepEqual(setup().audit.verify(), { ok: true, checked: 0 });
+});
+
+test('editing an entry is detected at that entry', () => {
+  const { audit, store } = setup();
+  for (let i = 0; i < 4; i++) audit.record({ actor: sam, action: 'x.y', meta: { i } });
+  const victim = store.get('audit', '00000002');
+  store.put('audit', { ...victim, actor: null });
+  const result = audit.verify();
+  assert.equal(result.ok, false);
+  assert.equal(result.firstBadId, '00000002');
+  assert.equal(result.checked, 1);
+});
+
+test('removing a middle entry breaks the chain at the next one', () => {
+  const { audit, store } = setup();
+  for (let i = 0; i < 4; i++) audit.record({ action: 'x.y' });
+  store.remove('audit', '00000002');
+  const result = audit.verify();
+  assert.equal(result.ok, false);
+  assert.equal(result.firstBadId, '00000003');
+  assert.match(result.reason, /removed or changed/);
+});
+
+test('truncating the tail is caught by the stored head', () => {
+  const { audit, store } = setup();
+  for (let i = 0; i < 3; i++) audit.record({ action: 'x.y' });
+  store.remove('audit', '00000003');
+  const result = audit.verify();
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /missing/);
+});
+
+test('entries from before chaining are skipped', () => {
+  const { audit, store } = setup();
+  store.put('audit', { id: '00000000', at: 'x', actor: null, action: 'old.thing', target: null, ip: null, meta: {} });
+  audit.record({ action: 'new.thing' });
+  assert.deepEqual(audit.verify(), { ok: true, checked: 1 });
+});
