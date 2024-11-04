@@ -308,3 +308,9 @@ button.link {
   max-width: 360px;
   margin: 40px auto;
 }
+
+.oncall .schedule + .schedule {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}

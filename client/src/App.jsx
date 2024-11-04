@@ -9,6 +9,7 @@ import IncidentDetail from './components/IncidentDetail.jsx';
 import IncidentForm from './components/IncidentForm.jsx';
 import IncidentList from './components/IncidentList.jsx';
 import Login from './components/Login.jsx';
+import OnCallPanel from './components/OnCallPanel.jsx';
 import StatusPage from './components/StatusPage.jsx';
 
 function useHashRoute() {
@@ -56,6 +57,7 @@ function Incidents({ api, user }) {
 
   return (
     <>
+      <OnCallPanel api={api} />
       {canRespond(user) && <IncidentForm api={api} services={services} onCreated={() => setReload((n) => n + 1)} />}
       <FilterBar filters={filters} dispatch={dispatch} />
       {error && <p className="error">Could not load incidents: {error}</p>}
