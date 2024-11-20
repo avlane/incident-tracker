@@ -56,3 +56,49 @@ test('private targets are allowed only when the policy says so', async (t) => {
   t.after(() => srv.close());
   assert.equal((await srv.api('POST', '/api/webhooks', { url: 'http://127.0.0.1:9000/hook' })).status, 201);
 });
+
+test('deliveries list shows what was sent, newest first, per webhook', async (t) => {
+  const statuses = [200, 500, 200];
+  const srv = await startTestServer({
+    app: { dispatcherOptions: { fetchImpl: async () => ({ status: statuses.shift() ?? 200 }), retryDelaysMs: [], sleep: async () => {} } },
+  });
+  t.after(() => srv.close());
+  const a = (await srv.api('POST', '/api/webhooks', { url })).json.webhook;
+  const b = (await srv.api('POST', '/api/webhooks', { url: 'https://other.example.com/in' })).json.webhook;
+  await srv.api('POST', `/api/webhooks/${b.id}`, undefined).catch(() => {});
+
+  await srv.api('POST', '/api/incidents', { title: 'one', severity: 'sev3' });
+  await srv.app.idle();
+
+  const list = await srv.api('GET', `/api/webhooks/${a.id}/deliveries`);
+  assert.equal(list.status, 200);
+  assert.equal(list.json.deliveries.length, 1);
+  assert.equal(list.json.deliveries[0].webhookId, a.id);
+  assert.equal(list.json.deliveries[0].type, 'incident.created');
+  assert.ok(!list.text.includes('whsec_'));
+  assert.equal((await srv.api('GET', '/api/webhooks/wh_nope/deliveries')).status, 404);
+});
+
+test('send test posts a ping and reports the outcome without retrying', async (t) => {
+  const calls = [];
+  const srv = await startTestServer({
+    app: {
+      dispatcherOptions: {
+        fetchImpl: async (u, init) => {
+          calls.push(JSON.parse(init.body));
+          return { status: 500 };
+        },
+        retryDelaysMs: [1, 1],
+        sleep: async () => {},
+      },
+    },
+  });
+  t.after(() => srv.close());
+  const { webhook } = (await srv.api('POST', '/api/webhooks', { url })).json;
+  const res = await srv.api('POST', `/api/webhooks/${webhook.id}/test`);
+  assert.equal(res.status, 200);
+  assert.equal(res.json.delivery.state, 'failed');
+  assert.equal(res.json.delivery.attempts.length, 1);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].type, 'webhook.ping');
+});

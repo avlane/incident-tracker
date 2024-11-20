@@ -9,7 +9,7 @@ function present(webhook, { withSecret = false } = {}) {
   return withSecret ? { ...rest, secret } : { ...rest, secretHint: `...${secret.slice(-4)}` };
 }
 
-export function registerWebhookRoutes(router, { store, clock, webhookPolicy }) {
+export function registerWebhookRoutes(router, { store, clock, webhookPolicy, dispatcher }) {
   function load(id) {
     const webhook = store.get('webhooks', id);
     if (!webhook) throw notFound(`webhook ${id} not found`);
@@ -52,6 +52,24 @@ export function registerWebhookRoutes(router, { store, clock, webhookPolicy }) {
     store.put('webhooks', next);
     ctx.audit('webhook.rotate_secret', next.id);
     return { body: { webhook: present(next, { withSecret: true }) } };
+  });
+
+  // Most recent first. Request and response bodies are never stored, only
+  // status codes and error text, so a receiver's data can't end up here.
+  router.get('/api/webhooks/:id/deliveries', async ({ params }) => {
+    load(params.id);
+    const deliveries = store
+      .list('deliveries')
+      .filter((d) => d.webhookId === params.id)
+      .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+      .slice(0, 50);
+    return { body: { deliveries } };
+  });
+
+  router.post('/api/webhooks/:id/test', async (ctx) => {
+    const delivery = await dispatcher.sendTest(load(ctx.params.id));
+    ctx.audit('webhook.test', ctx.params.id, { state: delivery.state });
+    return { body: { delivery } };
   });
 
   router.delete('/api/webhooks/:id', async (ctx) => {

@@ -50,7 +50,7 @@ export function createDispatcher({
     }
   }
 
-  async function deliver(webhook, event) {
+  async function deliver(webhook, event, { retry = true } = {}) {
     const body = JSON.stringify(event);
     const delivery = {
       id: `dlv_${randomBytes(6).toString('hex')}`,
@@ -62,10 +62,10 @@ export function createDispatcher({
       attempts: [],
     };
     for (let n = 0; ; n++) {
-      const { record, ok, retry } = await attempt(webhook, event, body, delivery.id);
+      const { record, ok, retry: willRetry } = await attempt(webhook, event, body, delivery.id);
       delivery.attempts.push(record);
       if (ok) delivery.state = 'delivered';
-      else if (!retry || n >= retryDelaysMs.length) delivery.state = 'failed';
+      else if (!willRetry || !retry || n >= retryDelaysMs.length) delivery.state = 'failed';
       store.put('deliveries', delivery);
       if (delivery.state !== 'pending') return delivery;
       await sleep(retryDelaysMs[n]);
@@ -86,11 +86,18 @@ export function createDispatcher({
     return targets.length;
   }
 
+  // Sends a one-off event to a single webhook and waits for the outcome. Used
+  // for "send test event"; it never retries, so the answer comes back fast.
+  function sendTest(webhook) {
+    const event = buildEvent('webhook.ping', { message: 'Test event from incident-tracker' }, clock(), `evt_${randomBytes(6).toString('hex')}`);
+    return deliver(webhook, event, { retry: false });
+  }
+
   // Resolves when every delivery started so far has finished (used by tests
   // and by graceful shutdown).
   async function idle() {
     while (pending.size > 0) await Promise.all([...pending]);
   }
 
-  return { emit, idle };
+  return { emit, sendTest, idle };
 }
