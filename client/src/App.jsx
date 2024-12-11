@@ -100,7 +100,7 @@ export default function App() {
     );
 
   return (
-    <AuthContext.Provider value={{ user: session.user }}>
+    <AuthContext value={{ user: session.user }}>
       <main className="page">
         <header className="top">
           <h1>Incident tracker</h1>
@@ -119,6 +119,6 @@ export default function App() {
         </header>
         {body}
       </main>
-    </AuthContext.Provider>
+    </AuthContext>
   );
 }
