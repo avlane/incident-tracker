@@ -90,3 +90,22 @@ test('signed-out callers get 401 for unknown paths too, not a hint that the path
   t.after(() => signedIn.close());
   assert.equal((await signedIn.api('GET', '/api/nothing-here')).status, 404);
 });
+
+test('the session cookie is Secure only when the request was HTTPS', async (t) => {
+  const plain = await startTestServer({ auth: false });
+  t.after(() => plain.close());
+  await plain.app.auth.createUser(user);
+  const creds = { email: user.email, password: user.password };
+
+  const http = await plain.api('POST', '/api/auth/login', creds, { 'x-forwarded-proto': 'https' });
+  assert.ok(!/Secure/.test(http.headers.get('set-cookie')), 'forwarded headers are ignored without trustProxy');
+  assert.equal(http.headers.get('cache-control'), 'no-store');
+
+  const proxied = await startTestServer({ auth: false, app: { trustProxy: true } });
+  t.after(() => proxied.close());
+  await proxied.app.auth.createUser(user);
+  const https = await proxied.api('POST', '/api/auth/login', creds, { 'x-forwarded-proto': 'https' });
+  assert.match(https.headers.get('set-cookie'), /; Secure/);
+  const direct = await proxied.api('POST', '/api/auth/login', creds);
+  assert.ok(!/Secure/.test(direct.headers.get('set-cookie')));
+});

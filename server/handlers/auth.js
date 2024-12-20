@@ -1,14 +1,16 @@
 import { HttpError, tooManyRequests, unprocessable } from '../errors.js';
+import { isSecureRequest } from '../http.js';
 
 export const SESSION_COOKIE = 'session';
 
-function cookie(token, expiresAt) {
+function cookie(token, expiresAt, secure) {
   const attrs = ['Path=/', 'HttpOnly', 'SameSite=Lax'];
+  if (secure) attrs.push('Secure');
   if (expiresAt) attrs.push(`Expires=${new Date(expiresAt).toUTCString()}`);
   return `${SESSION_COOKIE}=${encodeURIComponent(token)}; ${attrs.join('; ')}`;
 }
 
-export function registerAuthRoutes(router, { auth, limiters }) {
+export function registerAuthRoutes(router, { auth, limiters, trustProxy }) {
   router.post('/api/auth/login', async (ctx) => {
     // Failed guesses are what we want to slow down; a success clears the count.
     const verdict = limiters?.login.check(ctx.ip);
@@ -26,13 +28,16 @@ export function registerAuthRoutes(router, { auth, limiters }) {
     limiters?.login.reset(ctx.ip);
     return {
       body: { user: session.user, expiresAt: session.expiresAt },
-      headers: { 'set-cookie': cookie(session.token, session.expiresAt) },
+      headers: {
+        'set-cookie': cookie(session.token, session.expiresAt, isSecureRequest(ctx.req, trustProxy)),
+        'cache-control': 'no-store',
+      },
     };
   });
 
   router.post('/api/auth/logout', async (ctx) => {
     if (ctx.token && auth.logout(ctx.token)) ctx.audit('auth.logout', ctx.user?.id ?? null);
-    return { status: 204, headers: { 'set-cookie': cookie('', new Date(0)) } };
+    return { status: 204, headers: { 'set-cookie': cookie('', new Date(0), isSecureRequest(ctx.req, trustProxy)), 'cache-control': 'no-store' } };
   });
 
   router.get('/api/auth/me', async (ctx) => {

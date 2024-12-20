@@ -71,3 +71,10 @@ export function clientIp(req, trustProxy = false) {
   }
   return req.socket?.remoteAddress ?? 'unknown';
 }
+
+// True when the browser reached us over HTTPS: either directly, or through a
+// trusted proxy that says so. Used to decide whether to add Secure to cookies.
+export function isSecureRequest(req, trustProxy = false) {
+  if (req.socket?.encrypted) return true;
+  return trustProxy && String(req.headers['x-forwarded-proto'] ?? '').split(',')[0].trim() === 'https';
+}
