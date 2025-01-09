@@ -43,12 +43,18 @@ written atomically (temp file then rename). It is fine for a small team and
 trivial to inspect.
 
 The SQLite store uses the `node:sqlite` module built into Node 22.5 and newer.
-On Node 22.5 to 22.12 it sits behind a flag:
+Node 22.13 and 23.4 stopped requiring `--experimental-sqlite`, so on current
+versions it is just:
 
 ```
-npm run start:sqlite          # STORE=sqlite node --experimental-sqlite server/index.js
-npm run test:sqlite           # runs the SQLite tests on those versions
+STORE=sqlite npm start
 ```
+
+On Node 22.5 to 22.12, run the server with the flag yourself
+(`STORE=sqlite node --experimental-sqlite server/index.js`); the SQLite tests
+skip themselves when `node:sqlite` can't be loaded, and
+`node --experimental-sqlite --test` runs them on those versions. On Node 18
+and 20 use the default JSON store.
 
 Both stores implement the same small interface (`list`, `get`, `put`, `remove`,
 `nextSeq`, `transaction`) and one shared contract test runs against both. The
@@ -57,8 +63,8 @@ SQLite schema is versioned with `PRAGMA user_version` and numbered migrations.
 To move an existing JSON database over:
 
 ```
-node --experimental-sqlite server/cli.js migrate-store --from data/incidents.json --to data/incidents.db
-STORE=sqlite npm run start:sqlite
+node server/cli.js migrate-store --from data/incidents.json --to data/incidents.db
+STORE=sqlite npm start
 ```
 
 The target must be empty. Without `STORE=sqlite`, the JSON store is used.
