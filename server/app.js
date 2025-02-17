@@ -12,6 +12,7 @@ import { registerAuditRoutes } from './handlers/audit.js';
 import { registerAuthRoutes, SESSION_COOKIE } from './handlers/auth.js';
 import { registerExportRoutes } from './handlers/export.js';
 import { registerIncidentRoutes } from './handlers/incidents.js';
+import { registerMetricsRoutes } from './handlers/metrics.js';
 import { registerOnCallRoutes } from './handlers/oncall.js';
 import { registerPostmortemRoutes } from './handlers/postmortem.js';
 import { registerServiceRoutes } from './handlers/services.js';
@@ -26,6 +27,7 @@ const modules = [
   registerPostmortemRoutes,
   registerOnCallRoutes,
   registerExportRoutes,
+  registerMetricsRoutes,
   registerStatusRoutes,
   registerWebhookRoutes,
 ];
