@@ -314,3 +314,42 @@ button.link {
   padding-top: 10px;
   border-top: 1px solid var(--line);
 }
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.stat .big {
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.plain {
+  list-style: none;
+  padding: 0;
+}
+
+.weeks {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.weeks th,
+.weeks td {
+  text-align: left;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.bar {
+  display: inline-block;
+  height: 10px;
+  max-width: 60%;
+  border-radius: 3px;
+  vertical-align: middle;
+}
+
+.bar.opened { background: var(--sev2); }
+.bar.resolved { background: #1f7a45; }

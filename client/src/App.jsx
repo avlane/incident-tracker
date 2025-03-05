@@ -9,6 +9,7 @@ import IncidentDetail from './components/IncidentDetail.jsx';
 import IncidentForm from './components/IncidentForm.jsx';
 import IncidentList from './components/IncidentList.jsx';
 import Login from './components/Login.jsx';
+import MetricsPage from './components/MetricsPage.jsx';
 import OnCallPanel from './components/OnCallPanel.jsx';
 import StatusPage from './components/StatusPage.jsx';
 
@@ -91,6 +92,7 @@ export default function App() {
   else if (session.status === 'anonymous') {
     body = <Login api={api} notice={session.notice} onSignedIn={(user) => dispatchSession({ type: 'signed_in', user })} />;
   } else if (route.name === 'incident') body = <IncidentDetail api={api} id={route.id} />;
+  else if (route.name === 'metrics') body = <MetricsPage api={api} />;
   else if (route.name === 'list') body = <Incidents api={api} user={session.user} />;
   else
     body = (
@@ -106,6 +108,7 @@ export default function App() {
           <h1>Incident tracker</h1>
           <nav>
             <a href="#/">Incidents</a>
+            <a href="#/metrics">Metrics</a>
             <a href="#/status">Public status page</a>
             {session.user && (
               <>
