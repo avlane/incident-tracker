@@ -4,16 +4,22 @@
 
 const HOUR = 3_600_000;
 
-function shiftAt(schedule, atMs) {
+// The nth shift of the rotation (n = 0 is the first one, starting at startsAt).
+function shiftNumber(schedule, n) {
   const start = Date.parse(schedule.startsAt);
   const length = schedule.rotationHours * HOUR;
-  const n = Math.floor((atMs - start) / length);
+  const size = schedule.members.length;
   return {
     index: n,
-    who: schedule.members[((n % schedule.members.length) + schedule.members.length) % schedule.members.length],
+    who: schedule.members[((n % size) + size) % size],
     start: start + n * length,
     end: start + (n + 1) * length,
   };
+}
+
+function shiftAt(schedule, atMs) {
+  const length = schedule.rotationHours * HOUR;
+  return shiftNumber(schedule, Math.floor((atMs - Date.parse(schedule.startsAt)) / length));
 }
 
 // Who is on call at `at` (an ISO string). Returns null before the schedule
@@ -38,19 +44,15 @@ export function whoIsOnCall(schedule, at) {
 
 // The next `count` rotation shifts from `at`, ignoring overrides.
 export function upcomingShifts(schedule, at, count = 4) {
-  const atMs = Math.max(Date.parse(at), Date.parse(schedule.startsAt));
-  const first = shiftAt(schedule, atMs);
-  const out = [];
-  for (let k = 0; k < count; k++) {
-    const n = first.index + k;
-    const shift = shiftAt({ ...schedule, startsAt: schedule.startsAt }, Date.parse(schedule.startsAt) + n * schedule.rotationHours * HOUR);
-    out.push({
+  const first = shiftAt(schedule, Math.max(Date.parse(at), Date.parse(schedule.startsAt)));
+  return Array.from({ length: count }, (_, k) => {
+    const shift = shiftNumber(schedule, first.index + k);
+    return {
       who: shift.who,
       from: new Date(shift.start).toISOString(),
       to: new Date(shift.end).toISOString(),
-    });
-  }
-  return out;
+    };
+  });
 }
 
 export function createSchedule(input, { id, now }) {

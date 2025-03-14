@@ -64,8 +64,8 @@ test('deliveries list shows what was sent, newest first, per webhook', async (t)
   });
   t.after(() => srv.close());
   const a = (await srv.api('POST', '/api/webhooks', { url })).json.webhook;
-  const b = (await srv.api('POST', '/api/webhooks', { url: 'https://other.example.com/in' })).json.webhook;
-  await srv.api('POST', `/api/webhooks/${b.id}`, undefined).catch(() => {});
+  // a second webhook, to prove the list is scoped to one webhook
+  await srv.api('POST', '/api/webhooks', { url: 'https://other.example.com/in' });
 
   await srv.api('POST', '/api/incidents', { title: 'one', severity: 'sev3' });
   await srv.app.idle();
