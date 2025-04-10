@@ -34,3 +34,7 @@ test('the audit log is admin-only even to read', () => {
   assert.equal(requiredRole('GET', '/api/audit/'), 'admin');
   assert.equal(requiredRole('GET', '/api/auditing-notes'), 'viewer');
 });
+
+test('responders can write a postmortem', () => {
+  assert.equal(requiredRole('PUT', '/api/incidents/INC-0001/postmortem'), 'responder');
+});

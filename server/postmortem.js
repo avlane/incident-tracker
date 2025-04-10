@@ -24,6 +24,10 @@ function cell(value) {
     .replace(/\r?\n/g, ' ');
 }
 
+function bullets(items) {
+  return items?.length > 0 ? items.map((item) => `- ${oneLine(item)}`) : ['- '];
+}
+
 function oneLine(value) {
   return String(value ?? '').replace(/\s+/g, ' ').trim();
 }
@@ -73,10 +77,17 @@ export function generatePostmortem(incident, { services = [], now } = {}) {
     for (const more of rest) lines.push(`  ${more}`);
   }
 
-  lines.push('', '## Root cause', '', '_What actually broke, and why was it possible?_');
-  lines.push('', '## Detection', '', '_How did we find out? Could we have found out sooner?_');
-  lines.push('', '## What went well', '', '- ');
-  lines.push('', '## What went poorly', '', '- ');
-  lines.push('', '## Action items', '', '| Action | Owner | Due |', '|---|---|---|', '| | | |', '');
+  const pm = incident.postmortem ?? {};
+  lines.push('', '## Root cause', '', pm.rootCause || '_What actually broke, and why was it possible?_');
+  lines.push('', '## Detection', '', pm.detection || '_How did we find out? Could we have found out sooner?_');
+  lines.push('', '## What went well', '', ...bullets(pm.wentWell));
+  lines.push('', '## What went poorly', '', ...bullets(pm.wentPoorly));
+  lines.push('', '## Action items', '', '| Action | Owner | Due |', '|---|---|---|');
+  if (pm.actionItems?.length > 0) {
+    for (const item of pm.actionItems) lines.push(`| ${cell(item.action)} | ${cell(item.owner ?? '')} | ${cell(item.due ?? '')} |`);
+  } else {
+    lines.push('| | | |');
+  }
+  lines.push('');
   return lines.join('\n');
 }

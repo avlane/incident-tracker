@@ -36,6 +36,7 @@ export function createIncident(input, { id, now }) {
     createdAt: now,
     updatedAt: now,
     resolvedAt: null,
+    postmortem: null,
     updates: [
       {
         id: 1,

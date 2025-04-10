@@ -26,3 +26,38 @@ test('postmortem for an unknown incident is a 404', async (t) => {
   t.after(() => srv.close());
   assert.equal((await srv.api('GET', '/api/incidents/INC-0009/postmortem')).status, 404);
 });
+
+test('PUT stores the written postmortem and the Markdown reflects it', async (t) => {
+  const srv = await startTestServer();
+  t.after(() => srv.close());
+  await srv.api('POST', '/api/incidents', { title: 'Slow checkout', severity: 'sev2' });
+  const put = await srv.api('PUT', '/api/incidents/INC-0001/postmortem', {
+    rootCause: 'Cache stampede after deploy.',
+    wentWell: ['Fast rollback'],
+    actionItems: [{ action: 'Add request coalescing', owner: 'Sam', due: '2025-06-01' }],
+  });
+  assert.equal(put.status, 200);
+  assert.equal(put.json.postmortem.updatedBy, 'Test admin');
+  assert.equal(put.json.postmortem.detection, '');
+
+  const md = await srv.api('GET', '/api/incidents/INC-0001/postmortem');
+  assert.match(md.text, /Cache stampede after deploy\./);
+  assert.match(md.text, /\| Add request coalescing \| Sam \| 2025-06-01 \|/);
+  assert.equal((await srv.api('GET', '/api/incidents/INC-0001')).json.incident.postmortem.wentWell[0], 'Fast rollback');
+  assert.equal(srv.app.auditLog.list({ action: 'postmortem' }).entries.length, 1);
+});
+
+test('PUT validates action items and needs the responder role', async (t) => {
+  const srv = await startTestServer();
+  t.after(() => srv.close());
+  await srv.api('POST', '/api/incidents', { title: 'x', severity: 'sev3' });
+  const bad = await srv.api('PUT', '/api/incidents/INC-0001/postmortem', {
+    actionItems: [{ owner: 'Sam' }, { action: 'ok', due: 'next week' }, 'nope'],
+    wentWell: [''],
+  });
+  assert.equal(bad.status, 422);
+  assert.deepEqual(bad.json.error.details.map((d) => d.field).sort(), ['actionItems[0]', 'actionItems[1]', 'actionItems[2]', 'wentWell']);
+  const viewer = await srv.as('viewer');
+  assert.equal((await viewer('PUT', '/api/incidents/INC-0001/postmortem', {})).status, 403);
+  assert.equal((await srv.api('PUT', '/api/incidents/INC-0099/postmortem', {})).status, 404);
+});

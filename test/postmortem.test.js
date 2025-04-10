@@ -56,3 +56,27 @@ test('table cells are escaped', () => {
   const inc = createIncident({ title: 'x', severity: 'sev3', commander: 'a|b' }, { id: 'INC-0001', now: '2023-07-08T14:00:00.000Z' });
   assert.match(generatePostmortem(inc), /\| Commander \| a\\\|b \|/);
 });
+
+test('written postmortem fields replace the placeholders', () => {
+  const inc = {
+    ...resolvedIncident(),
+    postmortem: {
+      rootCause: 'A config push removed the connection pool limit.',
+      detection: 'Alert on 5xx rate fired after 4 minutes.',
+      wentWell: ['Rollback took two minutes', 'Clear comms'],
+      wentPoorly: ['No canary for config changes'],
+      actionItems: [
+        { action: 'Add a canary stage | for config', owner: 'Priya', due: '2025-05-30' },
+        { action: 'Alert on pool exhaustion' },
+      ],
+    },
+  };
+  const md = generatePostmortem(inc, { services });
+  assert.match(md, /## Root cause\n\nA config push removed/);
+  assert.match(md, /## Detection\n\nAlert on 5xx/);
+  assert.match(md, /## What went well\n\n- Rollback took two minutes\n- Clear comms/);
+  assert.match(md, /## What went poorly\n\n- No canary/);
+  assert.match(md, /\| Add a canary stage \\\| for config \| Priya \| 2025-05-30 \|/);
+  assert.match(md, /\| Alert on pool exhaustion \| {2}\| {2}\|/);
+  assert.ok(!md.includes('_What actually broke'));
+});

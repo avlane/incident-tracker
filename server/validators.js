@@ -222,3 +222,54 @@ export function validateWebhookInput(input, { partial = false, allowPrivate = fa
   for (const key of Object.keys(value)) if (value[key] === undefined) delete value[key];
   return { value, errors };
 }
+
+function stringList(input, field, errors, { maxItems = 20, maxLength = 500 } = {}) {
+  const list = input[field];
+  if (list === undefined) return [];
+  const ok = Array.isArray(list) && list.length <= maxItems && list.every((x) => typeof x === 'string' && x.trim() !== '' && x.trim().length <= maxLength);
+  if (!ok) {
+    errors.push({ field, message: `${field} must be a list of up to ${maxItems} non-empty strings of at most ${maxLength} characters` });
+    return [];
+  }
+  return list.map((x) => x.trim());
+}
+
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+export function validatePostmortemInput(input) {
+  const errors = [];
+  if (input === null || typeof input !== 'object' || Array.isArray(input)) {
+    return { value: null, errors: [{ field: '', message: 'body must be an object' }] };
+  }
+  const value = {
+    rootCause: text(input, 'rootCause', { max: 5000 }, errors) ?? '',
+    detection: text(input, 'detection', { max: 2000 }, errors) ?? '',
+    wentWell: stringList(input, 'wentWell', errors),
+    wentPoorly: stringList(input, 'wentPoorly', errors),
+    actionItems: [],
+  };
+  if (input.actionItems !== undefined) {
+    if (!Array.isArray(input.actionItems) || input.actionItems.length > 30) {
+      errors.push({ field: 'actionItems', message: 'actionItems must be a list of at most 30 items' });
+    } else {
+      input.actionItems.forEach((item, i) => {
+        const itemErrors = [];
+        const action = item && typeof item === 'object' ? text(item, 'action', { required: true, max: 300 }, itemErrors) : undefined;
+        const owner = item && typeof item === 'object' ? text(item, 'owner', { max: 80 }, itemErrors) : undefined;
+        const due = item?.due;
+        if (due !== undefined && due !== '' && !(typeof due === 'string' && DATE_ONLY.test(due) && !Number.isNaN(Date.parse(due)))) {
+          itemErrors.push({ message: 'due must be a date like 2025-05-30' });
+        }
+        if (!item || typeof item !== 'object' || itemErrors.length > 0) {
+          errors.push({ field: `actionItems[${i}]`, message: itemErrors[0]?.message ?? 'must be an object with an action' });
+          return;
+        }
+        const entry = { action };
+        if (owner) entry.owner = owner;
+        if (due) entry.due = due;
+        value.actionItems.push(entry);
+      });
+    }
+  }
+  return { value, errors };
+}

@@ -20,6 +20,7 @@ const RESPONDER = [
   ['POST', /^\/api\/incidents\/?$/],
   ['POST', /^\/api\/incidents\/[^/]+\/updates\/?$/],
   ['POST', /^\/api\/oncall\/[^/]+\/overrides\/?$/],
+  ['PUT', /^\/api\/incidents\/[^/]+\/postmortem\/?$/],
 ];
 
 const matches = (rules, method, path) => rules.some(([m, re]) => m === method && re.test(path));
