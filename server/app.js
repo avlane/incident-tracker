@@ -8,6 +8,7 @@ import { requiredRole } from './policy.js';
 import { toPublicIncident } from './statuspage.js';
 import { createRouter } from './router.js';
 import { createStaticHandler } from './static.js';
+import { registerActionItemRoutes } from './handlers/actionitems.js';
 import { registerAuditRoutes } from './handlers/audit.js';
 import { registerAuthRoutes, SESSION_COOKIE } from './handlers/auth.js';
 import { registerExportRoutes } from './handlers/export.js';
@@ -22,6 +23,7 @@ import { registerWebhookRoutes } from './handlers/webhooks.js';
 const modules = [
   registerAuthRoutes,
   registerAuditRoutes,
+  registerActionItemRoutes,
   registerIncidentRoutes,
   registerServiceRoutes,
   registerPostmortemRoutes,
