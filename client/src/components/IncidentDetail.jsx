@@ -4,6 +4,7 @@ import { IMPACT_LABEL } from '../lib/labels.js';
 import { SeverityBadge, StatusBadge } from './Badges.jsx';
 import { canRespond } from '../lib/session.js';
 import { useUser } from './AuthContext.jsx';
+import PostmortemEditor from './PostmortemEditor.jsx';
 import Timeline from './Timeline.jsx';
 import UpdateForm from './UpdateForm.jsx';
 
@@ -60,6 +61,14 @@ export default function IncidentDetail({ api, id }) {
       )}
       {canRespond(user) && <UpdateForm api={api} incident={incident} onUpdated={setIncident} />}
       <Timeline incident={incident} />
+      {canRespond(user) && incident.status === 'resolved' && (
+        <PostmortemEditor
+          key={incident.postmortem?.updatedAt ?? 'new'}
+          api={api}
+          incident={incident}
+          onSaved={(postmortem) => setIncident({ ...incident, postmortem })}
+        />
+      )}
       <p>
         <a href={`/api/incidents/${encodeURIComponent(incident.id)}/postmortem`}>Download postmortem draft (Markdown)</a>
       </p>

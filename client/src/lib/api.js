@@ -59,6 +59,8 @@ export function createApi({
     getIncident: (id) => request('GET', `/api/incidents/${encodeURIComponent(id)}`),
     createIncident: (input) => request('POST', '/api/incidents', input),
     postUpdate: (id, input) => request('POST', `/api/incidents/${encodeURIComponent(id)}/updates`, input),
+    putPostmortem: (id, input) => request('PUT', `/api/incidents/${encodeURIComponent(id)}/postmortem`, input),
+    listActionItems: (filters) => request('GET', `/api/action-items${buildQuery(filters)}`),
     getPostmortem: (id) => request('GET', `/api/incidents/${encodeURIComponent(id)}/postmortem`),
     getMetrics: (range) => request('GET', `/api/metrics${buildQuery(range)}`),
     getStatus: () => request('GET', '/api/status'),
