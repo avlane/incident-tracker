@@ -1,5 +1,6 @@
 import { ROLES } from './auth.js';
 import { IMPACTS, SEVERITIES, STATUSES } from './incidents.js';
+import { MAX_WINDOW_MS } from './maintenance.js';
 import { webhookUrlProblem } from './urlguard.js';
 import { EVENTS } from './webhooks.js';
 
@@ -271,5 +272,39 @@ export function validatePostmortemInput(input) {
       });
     }
   }
+  return { value, errors };
+}
+
+export function validateMaintenanceInput(input, { partial = false } = {}) {
+  const errors = [];
+  if (input === null || typeof input !== 'object' || Array.isArray(input)) {
+    return { value: null, errors: [{ field: '', message: 'body must be an object' }] };
+  }
+  const value = {};
+  value.title = text(input, 'title', { required: !partial, max: 140 }, errors);
+  value.message = text(input, 'message', { max: 2000 }, errors);
+  for (const field of ['startsAt', 'endsAt']) {
+    if (input[field] === undefined && partial) continue;
+    if (isoDate(input[field])) value[field] = new Date(input[field]).toISOString();
+    else errors.push({ field, message: `${field} must be an ISO date-time` });
+  }
+  if (value.startsAt && value.endsAt) {
+    const length = Date.parse(value.endsAt) - Date.parse(value.startsAt);
+    if (length <= 0) errors.push({ field: 'endsAt', message: 'endsAt must be after startsAt' });
+    else if (length > MAX_WINDOW_MS) errors.push({ field: 'endsAt', message: 'a maintenance window may last at most 7 days' });
+  }
+  if (input.affected !== undefined) {
+    const ok =
+      Array.isArray(input.affected) &&
+      input.affected.length <= 20 &&
+      input.affected.every((a) => a && typeof a.serviceId === 'string' && a.serviceId !== '' && (a.componentId === undefined || typeof a.componentId === 'string'));
+    if (ok) value.affected = input.affected.map((a) => (a.componentId ? { serviceId: a.serviceId, componentId: a.componentId } : { serviceId: a.serviceId }));
+    else errors.push({ field: 'affected', message: 'affected must be a list of { serviceId, componentId? }' });
+  }
+  if (partial && input.canceled !== undefined) {
+    if (typeof input.canceled === 'boolean') value.canceled = input.canceled;
+    else errors.push({ field: 'canceled', message: 'canceled must be true or false' });
+  }
+  for (const key of Object.keys(value)) if (value[key] === undefined) delete value[key];
   return { value, errors };
 }
