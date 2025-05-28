@@ -3,10 +3,15 @@
 // (commanders, internal updates, private incidents) is dropped here, in one
 // place, so no handler can forget to.
 
-export const COMPONENT_STATUSES = ['operational', 'degraded', 'partial_outage', 'major_outage'];
+import { maintenanceState } from './maintenance.js';
+
+// Ordered from best to worst. Maintenance sits just above operational: an
+// outage during a maintenance window is still shown as an outage.
+export const COMPONENT_STATUSES = ['operational', 'maintenance', 'degraded', 'partial_outage', 'major_outage'];
 
 const OVERALL_LABEL = {
   operational: 'All systems operational',
+  maintenance: 'Scheduled maintenance in progress',
   degraded: 'Some systems are slow',
   partial_outage: 'Partial outage',
   major_outage: 'Major outage',
@@ -38,13 +43,36 @@ export function toPublicIncident(incident, services) {
   };
 }
 
-export function buildStatusPage({ services, incidents, now, historyDays = 14 }) {
+function toPublicMaintenance(window, services, state) {
+  return {
+    id: window.id,
+    title: window.title,
+    message: window.message,
+    startsAt: window.startsAt,
+    endsAt: window.endsAt,
+    state,
+    affected: window.affected.map((a) => {
+      const service = services.find((s) => s.id === a.serviceId);
+      const component = service?.components.find((c) => c.id === a.componentId);
+      return { service: service ? service.name : a.serviceId, component: component ? component.name : null };
+    }),
+  };
+}
+
+export function buildStatusPage({ services, incidents, maintenance = [], now, historyDays = 14, upcomingDays = 14 }) {
   const visible = incidents.filter((i) => i.public !== false);
   const active = visible.filter((i) => i.status !== 'resolved');
   const cutoff = Date.parse(now) - historyDays * 86_400_000;
   const recent = visible
     .filter((i) => i.status === 'resolved' && Date.parse(i.resolvedAt) >= cutoff)
     .sort((a, b) => (a.resolvedAt < b.resolvedAt ? 1 : -1));
+
+  const states = maintenance.map((w) => ({ window: w, state: maintenanceState(w, now) }));
+  const activeWindows = states.filter((x) => x.state === 'active');
+  const horizon = Date.parse(now) + upcomingDays * 86_400_000;
+  const upcomingWindows = states
+    .filter((x) => x.state === 'scheduled' && Date.parse(x.window.startsAt) <= horizon)
+    .sort((a, b) => (a.window.startsAt < b.window.startsAt ? -1 : 1));
 
   const serviceRows = services
     .slice()
@@ -62,6 +90,16 @@ export function buildStatusPage({ services, incidents, now, historyDays = 14 }) 
           }
         }
       }
+      for (const { window } of activeWindows) {
+        for (const a of window.affected) {
+          if (a.serviceId !== service.id) continue;
+          if (a.componentId && byComponent.has(a.componentId)) {
+            byComponent.set(a.componentId, worst(byComponent.get(a.componentId), 'maintenance'));
+          } else {
+            serviceLevel = worst(serviceLevel, 'maintenance');
+          }
+        }
+      }
       const components = service.components.map((c) => ({
         id: c.id,
         name: c.name,
@@ -76,6 +114,10 @@ export function buildStatusPage({ services, incidents, now, historyDays = 14 }) 
     generatedAt: now,
     overall: { status: overall, label: OVERALL_LABEL[overall] },
     services: serviceRows,
+    maintenance: {
+      active: activeWindows.map((x) => toPublicMaintenance(x.window, services, x.state)),
+      upcoming: upcomingWindows.map((x) => toPublicMaintenance(x.window, services, x.state)),
+    },
     active: active.map((i) => toPublicIncident(i, services)),
     recent: recent.map((i) => toPublicIncident(i, services)),
   };

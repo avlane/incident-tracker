@@ -7,6 +7,7 @@ export function registerStatusRoutes(router, { store, clock }) {
     const page = buildStatusPage({
       services: store.list('services'),
       incidents: store.list('incidents'),
+      maintenance: store.list('maintenance'),
       now: clock(),
     });
     return { body: page, headers: { 'cache-control': 'public, max-age=30' } };

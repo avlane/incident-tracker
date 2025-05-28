@@ -8,6 +8,10 @@ test('statusClass falls back for unknown statuses', () => {
   assert.equal(statusClass('on_fire'), 'st-unknown');
 });
 
+test('maintenance has a label and a class', () => {
+  assert.equal(statusClass('maintenance'), 'st-maintenance');
+});
+
 test('describeAffected joins service and component', () => {
   assert.equal(describeAffected({ service: 'Checkout', component: 'API' }), 'Checkout / API');
   assert.equal(describeAffected({ service: 'Search', component: null }), 'Search');

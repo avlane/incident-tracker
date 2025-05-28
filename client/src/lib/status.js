@@ -1,5 +1,6 @@
 export const COMPONENT_LABEL = {
   operational: 'Operational',
+  maintenance: 'Under maintenance',
   degraded: 'Degraded performance',
   partial_outage: 'Partial outage',
   major_outage: 'Major outage',

@@ -69,3 +69,55 @@ test('private incidents and internal updates never appear', () => {
   assert.ok(!json.includes('escalate'));
   assert.deepEqual(page.active[0].updates.map((u) => u.message), ['We are on it', 'Public summary']);
 });
+
+const window = (extra = {}) => ({
+  id: 'mnt_1',
+  title: 'DB upgrade',
+  message: 'Read-only for about an hour.',
+  startsAt: '2023-11-15T11:00:00.000Z',
+  endsAt: '2023-11-15T13:00:00.000Z',
+  affected: [{ serviceId: 'checkout', componentId: 'db' }],
+  canceled: false,
+  ...extra,
+});
+
+test('an active maintenance window marks its component, quietly', () => {
+  const page = buildStatusPage({ services, incidents: [], maintenance: [window()], now: NOW });
+  const checkout = page.services.find((s) => s.id === 'checkout');
+  assert.deepEqual(checkout.components.map((c) => c.status), ['operational', 'maintenance']);
+  assert.equal(checkout.status, 'maintenance');
+  assert.equal(page.overall.label, 'Scheduled maintenance in progress');
+  assert.deepEqual(page.maintenance.active.map((w) => w.affected), [[{ service: 'Checkout', component: 'Database' }]]);
+});
+
+test('an incident outranks maintenance on the same component', () => {
+  const inc = incident(1, { affected: [{ serviceId: 'checkout', componentId: 'db', impact: 'degraded' }] });
+  const page = buildStatusPage({ services, incidents: [inc], maintenance: [window()], now: NOW });
+  assert.equal(page.services[0].components[1].status, 'degraded');
+  assert.equal(page.overall.status, 'degraded');
+});
+
+test('upcoming windows are listed soonest first within two weeks; canceled and finished ones are not', () => {
+  const page = buildStatusPage({
+    services,
+    incidents: [],
+    maintenance: [
+      window({ id: 'late', startsAt: '2023-11-20T01:00:00.000Z', endsAt: '2023-11-20T02:00:00.000Z' }),
+      window({ id: 'soon', startsAt: '2023-11-16T01:00:00.000Z', endsAt: '2023-11-16T02:00:00.000Z' }),
+      window({ id: 'far', startsAt: '2024-01-01T01:00:00.000Z', endsAt: '2024-01-01T02:00:00.000Z' }),
+      window({ id: 'canceled', startsAt: '2023-11-17T01:00:00.000Z', endsAt: '2023-11-17T02:00:00.000Z', canceled: true }),
+      window({ id: 'done', startsAt: '2023-11-14T01:00:00.000Z', endsAt: '2023-11-14T02:00:00.000Z' }),
+    ],
+    now: NOW,
+  });
+  assert.deepEqual(page.maintenance.upcoming.map((w) => w.id), ['soon', 'late']);
+  assert.equal(page.maintenance.active.length, 0);
+  assert.equal(page.overall.status, 'operational');
+});
+
+test('a service-level window covers every component', () => {
+  const page = buildStatusPage({ services, incidents: [], maintenance: [window({ affected: [{ serviceId: 'search' }] })], now: NOW });
+  const search = page.services.find((s) => s.id === 'search');
+  assert.equal(search.status, 'maintenance');
+  assert.equal(search.components[0].status, 'maintenance');
+});

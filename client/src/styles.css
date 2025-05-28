@@ -267,6 +267,7 @@ button.link {
 }
 
 .st-operational { background: #1f7a45; }
+.st-maintenance { background: #2456d6; }
 .st-degraded { background: #a77b00; }
 .st-partial_outage { background: #c4590a; }
 .st-major_outage { background: #b3261e; }

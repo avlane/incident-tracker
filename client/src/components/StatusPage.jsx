@@ -22,6 +22,19 @@ function PublicIncident({ incident }) {
   );
 }
 
+function MaintenanceNotice({ window }) {
+  return (
+    <article className="card maintenance">
+      <h3>{window.title}</h3>
+      <p className="note">
+        {window.startsAt.slice(0, 16).replace('T', ' ')} to {window.endsAt.slice(0, 16).replace('T', ' ')} UTC
+        {window.affected.length > 0 && <> &middot; {window.affected.map(describeAffected).join(', ')}</>}
+      </p>
+      {window.message && <p>{window.message}</p>}
+    </article>
+  );
+}
+
 export default function StatusPage({ api }) {
   const [page, setPage] = useState(null);
   const [error, setError] = useState(null);
@@ -52,6 +65,9 @@ export default function StatusPage({ api }) {
   return (
     <section>
       <div className={`banner ${statusClass(page.overall.status)}`}>{page.overall.label}</div>
+      {page.maintenance.active.map((w) => (
+        <MaintenanceNotice key={w.id} window={w} />
+      ))}
       {page.active.map((incident) => (
         <PublicIncident key={incident.id} incident={incident} />
       ))}
@@ -73,6 +89,10 @@ export default function StatusPage({ api }) {
           </li>
         ))}
       </ul>
+      {page.maintenance.upcoming.length > 0 && <h2>Upcoming maintenance</h2>}
+      {page.maintenance.upcoming.map((w) => (
+        <MaintenanceNotice key={w.id} window={w} />
+      ))}
       {page.recent.length > 0 && <h2>Past incidents</h2>}
       {page.recent.map((incident) => (
         <PublicIncident key={incident.id} incident={incident} />

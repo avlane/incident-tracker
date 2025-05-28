@@ -40,3 +40,16 @@ test('private incidents are not on the status page', async (t) => {
   const res = await srv.api('GET', '/api/status');
   assert.equal(res.json.active.length, 0);
 });
+
+test('the status endpoint includes active and upcoming maintenance', async (t) => {
+  const srv = await startTestServer({ clock: () => '2025-05-20T03:00:00.000Z' });
+  t.after(() => srv.close());
+  await srv.api('POST', '/api/services', { name: 'Checkout', components: ['DB'] });
+  const affected = [{ serviceId: 'checkout', componentId: 'db' }];
+  await srv.api('POST', '/api/maintenance', { title: 'Now', startsAt: '2025-05-20T02:00:00Z', endsAt: '2025-05-20T04:00:00Z', affected });
+  await srv.api('POST', '/api/maintenance', { title: 'Later', startsAt: '2025-05-25T02:00:00Z', endsAt: '2025-05-25T04:00:00Z' });
+  const res = await srv.anon('GET', '/api/status');
+  assert.equal(res.json.overall.status, 'maintenance');
+  assert.deepEqual(res.json.maintenance.active.map((w) => w.title), ['Now']);
+  assert.deepEqual(res.json.maintenance.upcoming.map((w) => w.title), ['Later']);
+});
