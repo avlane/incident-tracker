@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { startTestServer } from './helpers.js';
 
 const url = 'https://hooks.example.com/incidents';
+const resolveHost = async () => [{ address: '93.184.216.34' }];
 
 test('create shows the secret once, then only a hint', async (t) => {
   const srv = await startTestServer();
@@ -60,7 +61,7 @@ test('private targets are allowed only when the policy says so', async (t) => {
 test('deliveries list shows what was sent, newest first, per webhook', async (t) => {
   const statuses = [200, 500, 200];
   const srv = await startTestServer({
-    app: { dispatcherOptions: { fetchImpl: async () => ({ status: statuses.shift() ?? 200 }), retryDelaysMs: [], sleep: async () => {} } },
+    app: { dispatcherOptions: { fetchImpl: async () => ({ status: statuses.shift() ?? 200 }), retryDelaysMs: [], sleep: async () => {}, resolveHost } },
   });
   t.after(() => srv.close());
   const a = (await srv.api('POST', '/api/webhooks', { url })).json.webhook;
@@ -90,6 +91,7 @@ test('send test posts a ping and reports the outcome without retrying', async (t
         },
         retryDelaysMs: [1, 1],
         sleep: async () => {},
+        resolveHost,
       },
     },
   });

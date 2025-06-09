@@ -1,4 +1,6 @@
 import { randomBytes } from 'node:crypto';
+import { lookup } from 'node:dns/promises';
+import { isPrivateAddress } from './urlguard.js';
 import { EVENT_HEADER, SIGNATURE_HEADER, buildEvent, signatureHeader } from './webhooks.js';
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -18,6 +20,13 @@ export function createDispatcher({
   sleep = wait,
   retryDelaysMs = [2_000, 10_000, 60_000],
   timeoutMs = 5_000,
+  // Hostnames are checked again at send time, because a name that looked fine
+  // when the webhook was saved can be re-pointed at an internal address later.
+  // This narrows the window but cannot close it: fetch resolves the name
+  // itself a moment after we did (DNS rebinding). Run the server on a network
+  // that can't reach internal services if that matters.
+  allowPrivate = false,
+  resolveHost = (hostname) => lookup(hostname, { all: true, verbatim: true }),
 }) {
   const pending = new Set();
 
@@ -25,6 +34,16 @@ export function createDispatcher({
     const started = Date.now();
     const record = { at: clock() };
     try {
+      if (!allowPrivate) {
+        const { hostname } = new URL(webhook.url);
+        const bare = hostname.replace(/^\[|\]$/g, '');
+        const addresses = (await resolveHost(bare)).map((a) => a.address);
+        if (addresses.length === 0 || addresses.some(isPrivateAddress)) {
+          record.error = 'blocked: host resolves to a private or unresolvable address';
+          record.ms = Date.now() - started;
+          return { record, ok: false, retry: false };
+        }
+      }
       const res = await fetchImpl(webhook.url, {
         method: 'POST',
         redirect: 'manual',

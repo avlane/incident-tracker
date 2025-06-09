@@ -65,7 +65,7 @@ export function createApp({
     : null;
   sweeper?.unref();
   const auditLog = createAuditLog({ store, clock });
-  const dispatcher = createDispatcher({ store, clock, logger, ...dispatcherOptions });
+  const dispatcher = createDispatcher({ store, clock, logger, allowPrivate: webhookPolicy.allowPrivate, ...dispatcherOptions });
   const deps = { store, clock, logger, auth, limiters, auditLog, webhookPolicy, dispatcher, trustProxy };
   for (const register of modules) register(router, deps);
 

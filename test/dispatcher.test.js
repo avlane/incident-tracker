@@ -5,7 +5,9 @@ import { createJsonStore } from '../server/store/json-store.js';
 import { verifySignature } from '../server/webhooks.js';
 import { fakeClock } from './helpers.js';
 
-function setup({ responses = [200], hooks, retryDelaysMs = [10, 20] } = {}) {
+const publicHost = async () => [{ address: '93.184.216.34', family: 4 }];
+
+function setup({ responses = [200], hooks, retryDelaysMs = [10, 20], resolver = publicHost } = {}) {
   const store = createJsonStore();
   for (const hook of hooks ?? [{ id: 'wh_1', url: 'https://hooks.example.com/a', events: [], active: true, secret: 'whsec_x' }]) {
     store.put('webhooks', hook);
@@ -24,6 +26,7 @@ function setup({ responses = [200], hooks, retryDelaysMs = [10, 20] } = {}) {
     clock: fakeClock('2024-07-05T10:00:00.000Z', 1000),
     fetchImpl,
     sleep: async (ms) => sleeps.push(ms),
+    resolveHost: resolver,
     retryDelaysMs,
     logger: { error() {} },
   });
@@ -102,4 +105,59 @@ test('429 is retried', async () => {
   dispatcher.emit('incident.updated', incident);
   await dispatcher.idle();
   assert.equal(calls.length, 2);
+});
+
+test('a host that resolves to a private address is blocked without calling fetch', async () => {
+  for (const address of ['10.0.0.5', '127.0.0.1', '169.254.169.254', '::1']) {
+    const { dispatcher, calls, store } = setup({ resolver: async () => [{ address }] });
+    dispatcher.emit('incident.created', incident);
+    await dispatcher.idle();
+    assert.equal(calls.length, 0, address);
+    const [delivery] = store.list('deliveries');
+    assert.equal(delivery.state, 'failed');
+    assert.equal(delivery.attempts.length, 1, 'blocked deliveries are not retried');
+    assert.match(delivery.attempts[0].error, /^blocked/);
+  }
+});
+
+test('one private address among public ones is enough to block', async () => {
+  const { dispatcher, calls } = setup({ resolver: async () => [{ address: '93.184.216.34' }, { address: '10.1.1.1' }] });
+  dispatcher.emit('incident.created', incident);
+  await dispatcher.idle();
+  assert.equal(calls.length, 0);
+});
+
+test('unresolvable hosts fail and are retried like a network error', async () => {
+  let n = 0;
+  const { dispatcher, calls, store } = setup({
+    resolver: async () => {
+      n++;
+      if (n < 2) throw new Error('getaddrinfo ENOTFOUND hooks.example.com');
+      return [{ address: '93.184.216.34' }];
+    },
+  });
+  dispatcher.emit('incident.created', incident);
+  await dispatcher.idle();
+  assert.equal(calls.length, 1);
+  assert.equal(store.list('deliveries')[0].state, 'delivered');
+  assert.match(store.list('deliveries')[0].attempts[0].error, /ENOTFOUND/);
+});
+
+test('allowPrivate skips the check', async () => {
+  const store = createJsonStore();
+  store.put('webhooks', { id: 'w', url: 'http://127.0.0.1:9000/x', events: [], active: true, secret: 's' });
+  const calls = [];
+  const dispatcher = createDispatcher({
+    store,
+    clock: fakeClock(),
+    fetchImpl: async (u) => (calls.push(u), { status: 200 }),
+    allowPrivate: true,
+    resolveHost: async () => {
+      throw new Error('should not be asked');
+    },
+    logger: { error() {} },
+  });
+  dispatcher.emit('incident.created', incident);
+  await dispatcher.idle();
+  assert.deepEqual(calls, ['http://127.0.0.1:9000/x']);
 });

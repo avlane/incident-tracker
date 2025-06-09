@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { startTestServer } from './helpers.js';
 import { verifySignature } from '../server/webhooks.js';
 
+const resolveHost = async () => [{ address: '93.184.216.34' }];
+
 function recorder() {
   const calls = [];
   const fetchImpl = async (url, init) => {
@@ -14,7 +16,7 @@ function recorder() {
 
 async function withHook(options = {}) {
   const { calls, fetchImpl } = recorder();
-  const srv = await startTestServer({ app: { dispatcherOptions: { fetchImpl, retryDelaysMs: [] } }, ...options });
+  const srv = await startTestServer({ app: { dispatcherOptions: { fetchImpl, retryDelaysMs: [], resolveHost } }, ...options });
   const created = await srv.api('POST', '/api/webhooks', { url: 'https://hooks.example.com/in' });
   return { srv, calls, secret: created.json.webhook.secret };
 }
@@ -66,7 +68,7 @@ test('private incidents send nothing', async (t) => {
 
 test('a failing receiver does not break the API request', async (t) => {
   const srv = await startTestServer({
-    app: { dispatcherOptions: { fetchImpl: async () => { throw new Error('down'); }, retryDelaysMs: [] } },
+    app: { dispatcherOptions: { fetchImpl: async () => { throw new Error('down'); }, retryDelaysMs: [], resolveHost } },
   });
   t.after(() => srv.close());
   await srv.api('POST', '/api/webhooks', { url: 'https://hooks.example.com/in' });
