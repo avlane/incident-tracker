@@ -12,7 +12,8 @@ export function describeCurrent(schedule) {
   const { current } = schedule;
   if (!current) return { who: null, text: 'Not started yet' };
   const via = current.source === 'override' ? ' (override)' : '';
-  return { who: current.who, text: `${current.who}${via} until ${shortUtc(current.to)} UTC` };
+  const backup = current.secondary ? `, backup ${current.secondary}` : '';
+  return { who: current.who, text: `${current.who}${via} until ${shortUtc(current.to)} UTC${backup}` };
 }
 
 // The next handovers after the current shift, ignoring the shift we are in.

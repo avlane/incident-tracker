@@ -64,3 +64,26 @@ test('schedule and override validation', () => {
   const bad = validateOverrideInput({ who: 'x', from: '2023-07-05T00:00:00Z', to: '2023-07-04T00:00:00Z' });
   assert.equal(bad.errors[0].message, 'to must be after from');
 });
+
+test('the backup is the next person in the rotation', () => {
+  const s = schedule();
+  assert.equal(whoIsOnCall(s, '2023-07-12T00:00:00.000Z').secondary, 'cy');
+  assert.equal(whoIsOnCall(s, '2023-07-19T00:00:00.000Z').secondary, 'ana', 'wraps around');
+});
+
+test('during an override the backup is whoever was scheduled', () => {
+  const s = addOverride(schedule(), { who: 'dee', from: '2023-07-04T00:00:00.000Z', to: '2023-07-06T00:00:00.000Z' });
+  const current = whoIsOnCall(s, '2023-07-05T00:00:00.000Z');
+  assert.equal(current.who, 'dee');
+  assert.equal(current.secondary, 'ana');
+});
+
+test('overriding the scheduled person with themselves falls back to the rotation backup', () => {
+  const s = addOverride(schedule(), { who: 'ana', from: '2023-07-04T00:00:00.000Z', to: '2023-07-06T00:00:00.000Z' });
+  assert.equal(whoIsOnCall(s, '2023-07-05T00:00:00.000Z').secondary, 'ben');
+});
+
+test('a one-person rotation has no backup', () => {
+  const solo = createSchedule({ name: 'Solo', members: ['ana'], startsAt: '2023-07-03T09:00:00.000Z' }, { id: 'solo', now: '2023-07-01T00:00:00.000Z' });
+  assert.equal(whoIsOnCall(solo, '2023-07-12T00:00:00.000Z').secondary, null);
+});

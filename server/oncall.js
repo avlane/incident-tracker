@@ -22,20 +22,29 @@ function shiftAt(schedule, atMs) {
   return shiftNumber(schedule, Math.floor((atMs - Date.parse(schedule.startsAt)) / length));
 }
 
-// Who is on call at `at` (an ISO string). Returns null before the schedule
-// has started.
+// The person after `shift` in the rotation, or null when nobody else could
+// be called (a one-person rotation).
+const backupFor = (schedule, shift) => (schedule.members.length > 1 ? shiftNumber(schedule, shift.index + 1).who : null);
+
+// Who is on call at `at` (an ISO string), and who to escalate to if they don't
+// answer. Returns null before the schedule has started.
+//
+// For a normal shift the backup is the next person in the rotation. During an
+// override the backup is the person who was originally scheduled.
 export function whoIsOnCall(schedule, at) {
   const atMs = Date.parse(at);
   if (atMs < Date.parse(schedule.startsAt)) return null;
   for (let i = schedule.overrides.length - 1; i >= 0; i--) {
     const o = schedule.overrides[i];
     if (atMs >= Date.parse(o.from) && atMs < Date.parse(o.to)) {
-      return { who: o.who, source: 'override', from: o.from, to: o.to };
+      const scheduled = shiftAt(schedule, atMs).who;
+      return { who: o.who, secondary: scheduled === o.who ? backupFor(schedule, shiftAt(schedule, atMs)) : scheduled, source: 'override', from: o.from, to: o.to };
     }
   }
   const shift = shiftAt(schedule, atMs);
   return {
     who: shift.who,
+    secondary: backupFor(schedule, shift),
     source: 'rotation',
     from: new Date(shift.start).toISOString(),
     to: new Date(shift.end).toISOString(),

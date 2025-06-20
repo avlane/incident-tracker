@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { describeCurrent, nextHandovers, shortUtc } from '../src/lib/oncall.js';
 
 const schedule = {
-  current: { who: 'ben', source: 'rotation', from: '2024-11-04T09:00:00.000Z', to: '2024-11-11T09:00:00.000Z' },
+  current: { who: 'ben', secondary: null, source: 'rotation', from: '2024-11-04T09:00:00.000Z', to: '2024-11-11T09:00:00.000Z' },
   upcoming: [
     { who: 'ben', from: '2024-11-04T09:00:00.000Z', to: '2024-11-11T09:00:00.000Z' },
     { who: 'cy', from: '2024-11-11T09:00:00.000Z', to: '2024-11-18T09:00:00.000Z' },
@@ -21,6 +21,11 @@ test('describeCurrent', () => {
   const override = { ...schedule, current: { ...schedule.current, who: 'dee', source: 'override' } };
   assert.equal(describeCurrent(override).text, 'dee (override) until Mon 09:00 UTC');
   assert.deepEqual(describeCurrent({ current: null, upcoming: [] }), { who: null, text: 'Not started yet' });
+});
+
+test('describeCurrent mentions the backup when there is one', () => {
+  const withBackup = { ...schedule, current: { ...schedule.current, secondary: 'cy' } };
+  assert.equal(describeCurrent(withBackup).text, 'ben until Mon 09:00 UTC, backup cy');
 });
 
 test('nextHandovers skips the shift in progress', () => {
