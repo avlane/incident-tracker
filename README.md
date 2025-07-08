@@ -114,7 +114,8 @@ npm install
 npm run dev
 ```
 
-Vite serves the UI on port 5173 and proxies `/api` to the API on port 3000..
+Vite serves the UI on port 5173 and proxies `/api` to the API on port 3000.
+Vite 7 needs Node 20.19 or newer (the API itself still runs on Node 18)..
 
 ## License
 
