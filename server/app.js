@@ -66,6 +66,9 @@ export function createApp({
   sweeper?.unref();
   const auditLog = createAuditLog({ store, clock });
   const dispatcher = createDispatcher({ store, clock, logger, allowPrivate: webhookPolicy.allowPrivate, ...dispatcherOptions });
+  // Expired sessions are also ignored when presented, this just keeps them from piling up.
+  const sessionSweeper = setInterval(() => auth.purgeExpired(), 3_600_000);
+  sessionSweeper.unref();
   const deps = { store, clock, logger, auth, limiters, auditLog, webhookPolicy, dispatcher, trustProxy };
   for (const register of modules) register(router, deps);
 
@@ -147,5 +150,15 @@ export function createApp({
     }
   }
 
-  return { handle, router, auth, auditLog, idle: () => dispatcher.idle(), close: () => clearInterval(sweeper) };
+  return {
+    handle,
+    router,
+    auth,
+    auditLog,
+    idle: () => dispatcher.idle(),
+    close() {
+      clearInterval(sweeper);
+      clearInterval(sessionSweeper);
+    },
+  };
 }

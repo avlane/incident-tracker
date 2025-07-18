@@ -109,3 +109,22 @@ test('the session cookie is Secure only when the request was HTTPS', async (t) =
   const direct = await proxied.api('POST', '/api/auth/login', creds);
   assert.ok(!/Secure/.test(direct.headers.get('set-cookie')));
 });
+
+test('DELETE /api/auth/sessions signs the user out everywhere', async (t) => {
+  const srv = await startTestServer({ auth: false });
+  t.after(() => srv.close());
+  await srv.app.auth.createUser(user);
+  const creds = { email: user.email, password: user.password };
+  const tokenOf = (res) => decodeURIComponent(res.headers.get('set-cookie').split(';')[0].slice('session='.length));
+  const laptop = tokenOf(await srv.api('POST', '/api/auth/login', creds));
+  const phone = tokenOf(await srv.api('POST', '/api/auth/login', creds));
+  const bearer = (token) => ({ authorization: `Bearer ${token}` });
+
+  assert.equal((await srv.api('GET', '/api/auth/me', undefined, bearer(phone))).status, 200);
+  const res = await srv.api('DELETE', '/api/auth/sessions', undefined, bearer(laptop));
+  assert.equal(res.status, 200);
+  assert.equal(res.json.removed, 2);
+  assert.equal((await srv.api('GET', '/api/auth/me', undefined, bearer(phone))).status, 401);
+  assert.equal((await srv.api('DELETE', '/api/auth/sessions')).status, 401);
+  assert.equal(srv.app.auditLog.list({ action: 'auth.logout_all' }).entries.length, 1);
+});

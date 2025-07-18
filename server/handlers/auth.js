@@ -40,6 +40,13 @@ export function registerAuthRoutes(router, { auth, limiters, trustProxy }) {
     return { status: 204, headers: { 'set-cookie': cookie('', new Date(0), isSecureRequest(ctx.req, trustProxy)), 'cache-control': 'no-store' } };
   });
 
+  // "Sign out everywhere": ends every session this user has, including this one.
+  router.delete('/api/auth/sessions', async (ctx) => {
+    const removed = auth.logoutAll(ctx.user.id);
+    ctx.audit('auth.logout_all', ctx.user.id, { sessions: removed });
+    return { body: { removed }, headers: { 'set-cookie': cookie('', new Date(0), isSecureRequest(ctx.req, trustProxy)) } };
+  });
+
   router.get('/api/auth/me', async (ctx) => {
     if (!ctx.user) throw new HttpError(401, 'not signed in');
     return { body: { user: ctx.user } };

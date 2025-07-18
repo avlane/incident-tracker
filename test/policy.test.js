@@ -38,3 +38,8 @@ test('the audit log is admin-only even to read', () => {
 test('responders can write a postmortem', () => {
   assert.equal(requiredRole('PUT', '/api/incidents/INC-0001/postmortem'), 'responder');
 });
+
+test('self-service account actions need only a signed-in user', () => {
+  assert.equal(requiredRole('DELETE', '/api/auth/sessions'), 'viewer');
+  assert.equal(requiredRole('POST', '/api/auth/password'), 'viewer');
+});

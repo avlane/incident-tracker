@@ -20,6 +20,8 @@ export function createAuthService({
   store,
   clock,
   sessionTtlMs = 12 * 3_600_000,
+  // Activity keeps a session alive, but never past this age.
+  sessionMaxAgeMs = 7 * 24 * 3_600_000,
   hashParams,
   randomToken = () => randomBytes(32).toString('base64url'),
 }) {
@@ -67,6 +69,18 @@ export function createAuthService({
     return { token, user: publicUser(user), expiresAt };
   }
 
+  // Sliding expiry: use the session and it keeps going, up to the absolute cap.
+  // Only written once half the lifetime is gone, so reads don't turn into writes.
+  function slide(session) {
+    const now = Date.parse(clock());
+    if (Date.parse(session.expiresAt) - now > sessionTtlMs / 2) return session;
+    const capped = Math.min(now + sessionTtlMs, Date.parse(session.createdAt) + sessionMaxAgeMs);
+    if (capped <= Date.parse(session.expiresAt)) return session;
+    const next = { ...session, expiresAt: new Date(capped).toISOString() };
+    store.put('sessions', next);
+    return next;
+  }
+
   function authenticate(token) {
     if (typeof token !== 'string' || token === '') return null;
     const session = store.get('sessions', hashToken(token));
@@ -77,14 +91,32 @@ export function createAuthService({
     }
     const user = store.get('users', session.userId);
     if (!user || user.disabled) return null;
-    return { user: publicUser(user), session };
+    return { user: publicUser(user), session: slide(session) };
   }
 
   function logout(token) {
     return store.remove('sessions', hashToken(token));
   }
 
+  // Signs a user out of every device. Returns how many sessions were removed.
+  function logoutAll(userId) {
+    let removed = 0;
+    for (const session of store.list('sessions')) {
+      if (session.userId === userId && store.remove('sessions', session.id)) removed++;
+    }
+    return removed;
+  }
+
+  function purgeExpired() {
+    const now = Date.parse(clock());
+    let removed = 0;
+    for (const session of store.list('sessions')) {
+      if (Date.parse(session.expiresAt) <= now && store.remove('sessions', session.id)) removed++;
+    }
+    return removed;
+  }
+
   const listUsers = () => store.list('users').map(publicUser);
 
-  return { createUser, login, authenticate, logout, listUsers, findByEmail };
+  return { createUser, login, authenticate, logout, logoutAll, purgeExpired, listUsers, findByEmail };
 }

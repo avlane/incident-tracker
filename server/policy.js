@@ -16,6 +16,12 @@ const PUBLIC = [
 // Reads that expose who did what, or credentials-adjacent settings.
 const ADMIN_READ = [['GET', /^\/api\/(audit|users|webhooks)(\/|$)/]];
 
+// Things any signed-in user may do to their own account.
+const SELF_SERVICE = [
+  ['DELETE', /^\/api\/auth\/sessions\/?$/],
+  ['POST', /^\/api\/auth\/password\/?$/],
+];
+
 const RESPONDER = [
   ['POST', /^\/api\/incidents\/?$/],
   ['POST', /^\/api\/incidents\/[^/]+\/updates\/?$/],
@@ -29,6 +35,7 @@ export function requiredRole(method, path) {
   if (matches(PUBLIC, method, path)) return 'public';
   if (matches(ADMIN_READ, method, path)) return 'admin';
   if (method === 'GET' || method === 'HEAD') return 'viewer';
+  if (matches(SELF_SERVICE, method, path)) return 'viewer';
   if (matches(RESPONDER, method, path)) return 'responder';
   return 'admin';
 }
