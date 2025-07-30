@@ -154,3 +154,21 @@ test('purgeExpired removes only expired sessions', async () => {
   assert.equal(auth.purgeExpired(), 1);
   assert.equal(store.list('sessions').length, 1);
 });
+
+test('changePassword checks the current password, applies the policy and ends other sessions', async () => {
+  const { auth, store } = setup();
+  const created = await auth.createUser(alice);
+  const here = await auth.login(alice.email, alice.password);
+  await auth.login(alice.email, alice.password);
+
+  assert.equal(await auth.changePassword(created.id, 'not my password', 'a brand new passphrase', here.token), null);
+  await assert.rejects(auth.changePassword(created.id, alice.password, 'short', here.token), { status: 422 });
+  await assert.rejects(auth.changePassword(created.id, alice.password, alice.password, here.token), { status: 422 });
+  assert.equal(store.list('sessions').length, 2, 'failed attempts end nothing');
+
+  assert.equal(await auth.changePassword(created.id, alice.password, 'a brand new passphrase', here.token), 1);
+  assert.ok(auth.authenticate(here.token), 'this session stays signed in');
+  assert.equal(store.list('sessions').length, 1);
+  assert.equal(await auth.login(alice.email, alice.password), null);
+  assert.ok(await auth.login(alice.email, 'a brand new passphrase'));
+});

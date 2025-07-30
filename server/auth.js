@@ -116,7 +116,27 @@ export function createAuthService({
     return removed;
   }
 
+  // Changing your password needs the current one (a stolen session alone
+  // isn't enough) and signs every other session out. Returns the number of
+  // other sessions removed, or null when the current password was wrong.
+  async function changePassword(userId, currentPassword, newPassword, keepToken) {
+    const user = store.get('users', userId);
+    if (!user || !(await verifyPassword(currentPassword, user.passwordHash))) return null;
+    const problems = passwordProblems(newPassword);
+    if (problems.length > 0) throw unprocessable([{ field: 'next', message: `password ${problems[0]}` }]);
+    if (newPassword === currentPassword) {
+      throw unprocessable([{ field: 'next', message: 'the new password must differ from the current one' }]);
+    }
+    store.put('users', { ...user, passwordHash: await hashPassword(newPassword, hashParams) });
+    const keep = keepToken ? hashToken(keepToken) : null;
+    let removed = 0;
+    for (const session of store.list('sessions')) {
+      if (session.userId === userId && session.id !== keep && store.remove('sessions', session.id)) removed++;
+    }
+    return removed;
+  }
+
   const listUsers = () => store.list('users').map(publicUser);
 
-  return { createUser, login, authenticate, logout, logoutAll, purgeExpired, listUsers, findByEmail };
+  return { createUser, login, authenticate, logout, logoutAll, changePassword, purgeExpired, listUsers, findByEmail };
 }

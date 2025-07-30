@@ -128,3 +128,24 @@ test('DELETE /api/auth/sessions signs the user out everywhere', async (t) => {
   assert.equal((await srv.api('DELETE', '/api/auth/sessions')).status, 401);
   assert.equal(srv.app.auditLog.list({ action: 'auth.logout_all' }).entries.length, 1);
 });
+
+test('POST /api/auth/password', async (t) => {
+  const srv = await startTestServer({ auth: false });
+  t.after(() => srv.close());
+  await srv.app.auth.createUser(user);
+  const login = await srv.api('POST', '/api/auth/login', { email: user.email, password: user.password });
+  const token = decodeURIComponent(login.headers.get('set-cookie').split(';')[0].slice('session='.length));
+  const as = { authorization: `Bearer ${token}` };
+
+  assert.equal((await srv.api('POST', '/api/auth/password', { current: 'x', next: 'y' })).status, 401);
+  assert.equal((await srv.api('POST', '/api/auth/password', { current: 'x' }, as)).status, 422);
+  assert.equal((await srv.api('POST', '/api/auth/password', { current: 'wrong wrong wrong', next: 'another long passphrase' }, as)).status, 403);
+  assert.equal((await srv.api('POST', '/api/auth/password', { current: user.password, next: 'short' }, as)).status, 422);
+
+  const ok = await srv.api('POST', '/api/auth/password', { current: user.password, next: 'another long passphrase' }, as);
+  assert.equal(ok.status, 200);
+  assert.equal((await srv.api('POST', '/api/auth/login', { email: user.email, password: user.password })).status, 401);
+  assert.equal((await srv.api('POST', '/api/auth/login', { email: user.email, password: 'another long passphrase' })).status, 200);
+  const actions = srv.app.auditLog.list().entries.map((e) => e.action);
+  assert.ok(actions.includes('auth.password_change') && actions.includes('auth.password_change_failed'));
+});

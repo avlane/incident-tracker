@@ -47,6 +47,25 @@ export function registerAuthRoutes(router, { auth, limiters, trustProxy }) {
     return { body: { removed }, headers: { 'set-cookie': cookie('', new Date(0), isSecureRequest(ctx.req, trustProxy)) } };
   });
 
+  router.post('/api/auth/password', async (ctx) => {
+    const body = await ctx.readBody();
+    if (typeof body.current !== 'string' || typeof body.next !== 'string') {
+      throw unprocessable([{ field: 'next', message: 'current and next are required' }]);
+    }
+    // Guessing the current password through this route is as good as guessing it at login.
+    const key = `pw:${ctx.user.id}`;
+    const verdict = limiters?.login.check(key);
+    if (verdict && !verdict.allowed) throw tooManyRequests(verdict.retryAfterSeconds);
+    const removed = await auth.changePassword(ctx.user.id, body.current, body.next, ctx.token);
+    if (removed === null) {
+      ctx.audit('auth.password_change_failed', ctx.user.id);
+      throw new HttpError(403, 'current password is incorrect');
+    }
+    limiters?.login.reset(key);
+    ctx.audit('auth.password_change', ctx.user.id, { otherSessionsEnded: removed });
+    return { body: { ok: true, otherSessionsEnded: removed } };
+  });
+
   router.get('/api/auth/me', async (ctx) => {
     if (!ctx.user) throw new HttpError(401, 'not signed in');
     return { body: { user: ctx.user } };
