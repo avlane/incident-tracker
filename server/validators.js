@@ -308,3 +308,22 @@ export function validateMaintenanceInput(input, { partial = false } = {}) {
   for (const key of Object.keys(value)) if (value[key] === undefined) delete value[key];
   return { value, errors };
 }
+
+export function validateUserUpdate(input) {
+  const errors = [];
+  if (input === null || typeof input !== 'object' || Array.isArray(input)) {
+    return { value: null, errors: [{ field: '', message: 'body must be an object' }] };
+  }
+  const value = {};
+  value.name = text(input, 'name', { max: 80 }, errors);
+  if (input.role !== undefined) {
+    if (ROLES.includes(input.role)) value.role = input.role;
+    else errors.push({ field: 'role', message: `role must be one of ${ROLES.join(', ')}` });
+  }
+  if (input.disabled !== undefined) {
+    if (typeof input.disabled === 'boolean') value.disabled = input.disabled;
+    else errors.push({ field: 'disabled', message: 'disabled must be true or false' });
+  }
+  for (const key of Object.keys(value)) if (value[key] === undefined) delete value[key];
+  return { value, errors };
+}

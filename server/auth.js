@@ -136,7 +136,24 @@ export function createAuthService({
     return removed;
   }
 
+  // Role and disabled changes. The tracker must always keep at least one
+  // enabled admin, otherwise nobody can fix things from inside the app.
+  function updateUser(id, changes) {
+    const user = store.get('users', id);
+    if (!user) return null;
+    const next = { ...user, ...changes };
+    const wasAdmin = user.role === 'admin' && !user.disabled;
+    const stillAdmin = next.role === 'admin' && !next.disabled;
+    if (wasAdmin && !stillAdmin) {
+      const others = store.list('users').filter((u) => u.id !== id && u.role === 'admin' && !u.disabled);
+      if (others.length === 0) throw conflict('this is the last enabled admin');
+    }
+    store.put('users', next);
+    if (next.disabled && !user.disabled) logoutAll(id);
+    return publicUser(next);
+  }
+
   const listUsers = () => store.list('users').map(publicUser);
 
-  return { createUser, login, authenticate, logout, logoutAll, changePassword, purgeExpired, listUsers, findByEmail };
+  return { createUser, login, authenticate, logout, logoutAll, changePassword, updateUser, purgeExpired, listUsers, findByEmail };
 }
