@@ -42,12 +42,14 @@ export function registerAuthRoutes(router, { auth, limiters, trustProxy }) {
 
   // "Sign out everywhere": ends every session this user has, including this one.
   router.delete('/api/auth/sessions', async (ctx) => {
+    if (ctx.user.kind === 'token') throw new HttpError(403, 'API tokens have no sessions');
     const removed = auth.logoutAll(ctx.user.id);
     ctx.audit('auth.logout_all', ctx.user.id, { sessions: removed });
     return { body: { removed }, headers: { 'set-cookie': cookie('', new Date(0), isSecureRequest(ctx.req, trustProxy)) } };
   });
 
   router.post('/api/auth/password', async (ctx) => {
+    if (ctx.user.kind === 'token') throw new HttpError(403, 'API tokens have no password');
     const body = await ctx.readBody();
     if (typeof body.current !== 'string' || typeof body.next !== 'string') {
       throw unprocessable([{ field: 'next', message: 'current and next are required' }]);

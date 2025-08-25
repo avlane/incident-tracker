@@ -3,6 +3,9 @@ import { conflict, unprocessable } from './errors.js';
 import { hashPassword, needsRehash, passwordProblems, verifyPassword } from './passwords.js';
 
 export const ROLES = ['viewer', 'responder', 'admin'];
+// API tokens are for scripts; they can read and respond but never administer.
+export const TOKEN_ROLES = ['viewer', 'responder'];
+export const TOKEN_PREFIX = 'itk_';
 
 const rank = (role) => ROLES.indexOf(role);
 export const hasRole = (user, needed) => rank(user.role) >= rank(needed);
@@ -81,8 +84,52 @@ export function createAuthService({
     return next;
   }
 
+  // --- API tokens -------------------------------------------------------
+
+  function createApiToken({ name, role, createdBy, expiresInDays }) {
+    const token = `${TOKEN_PREFIX}${randomBytes(24).toString('base64url')}`;
+    const now = clock();
+    const doc = {
+      id: hashToken(token),
+      name,
+      role,
+      createdBy,
+      createdAt: now,
+      expiresAt: expiresInDays ? new Date(Date.parse(now) + expiresInDays * 86_400_000).toISOString() : null,
+      lastUsedAt: null,
+    };
+    store.put('tokens', doc);
+    return { token, record: presentToken(doc) };
+  }
+
+  // The record id is the stored hash, so show a short stable prefix of it instead.
+  const presentToken = ({ id, ...rest }) => ({ id: `tok_${id.slice(0, 10)}`, ...rest });
+
+  const listApiTokens = () => store.list('tokens').map(presentToken);
+
+  function revokeApiToken(publicId) {
+    const doc = store.list('tokens').find((t) => `tok_${t.id.slice(0, 10)}` === publicId);
+    return doc ? store.remove('tokens', doc.id) : false;
+  }
+
+  function authenticateApiToken(token) {
+    const doc = store.get('tokens', hashToken(token));
+    if (!doc) return null;
+    const now = clock();
+    if (doc.expiresAt && Date.parse(doc.expiresAt) <= Date.parse(now)) return null;
+    // Record use at most once an hour so reads don't become writes.
+    if (!doc.lastUsedAt || Date.parse(now) - Date.parse(doc.lastUsedAt) > 3_600_000) {
+      store.put('tokens', { ...doc, lastUsedAt: now });
+    }
+    return {
+      user: { id: `tok_${doc.id.slice(0, 10)}`, name: `token: ${doc.name}`, email: null, role: doc.role, kind: 'token' },
+      session: null,
+    };
+  }
+
   function authenticate(token) {
     if (typeof token !== 'string' || token === '') return null;
+    if (token.startsWith(TOKEN_PREFIX)) return authenticateApiToken(token);
     const session = store.get('sessions', hashToken(token));
     if (!session) return null;
     if (Date.parse(session.expiresAt) <= Date.parse(clock())) {
@@ -155,5 +202,5 @@ export function createAuthService({
 
   const listUsers = () => store.list('users').map(publicUser);
 
-  return { createUser, login, authenticate, logout, logoutAll, changePassword, updateUser, purgeExpired, listUsers, findByEmail };
+  return { createUser, login, authenticate, logout, logoutAll, changePassword, updateUser, createApiToken, listApiTokens, revokeApiToken, purgeExpired, listUsers, findByEmail };
 }

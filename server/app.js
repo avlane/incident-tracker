@@ -19,6 +19,7 @@ import { registerOnCallRoutes } from './handlers/oncall.js';
 import { registerPostmortemRoutes } from './handlers/postmortem.js';
 import { registerServiceRoutes } from './handlers/services.js';
 import { registerStatusRoutes } from './handlers/status.js';
+import { registerTokenRoutes } from './handlers/tokens.js';
 import { registerUserRoutes } from './handlers/users.js';
 import { registerWebhookRoutes } from './handlers/webhooks.js';
 
@@ -34,6 +35,7 @@ const modules = [
   registerMaintenanceRoutes,
   registerMetricsRoutes,
   registerStatusRoutes,
+  registerTokenRoutes,
   registerUserRoutes,
   registerWebhookRoutes,
 ];

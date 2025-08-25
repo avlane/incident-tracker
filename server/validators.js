@@ -1,4 +1,4 @@
-import { ROLES } from './auth.js';
+import { ROLES, TOKEN_ROLES } from './auth.js';
 import { IMPACTS, SEVERITIES, STATUSES } from './incidents.js';
 import { MAX_WINDOW_MS } from './maintenance.js';
 import { webhookUrlProblem } from './urlguard.js';
@@ -323,6 +323,23 @@ export function validateUserUpdate(input) {
   if (input.disabled !== undefined) {
     if (typeof input.disabled === 'boolean') value.disabled = input.disabled;
     else errors.push({ field: 'disabled', message: 'disabled must be true or false' });
+  }
+  for (const key of Object.keys(value)) if (value[key] === undefined) delete value[key];
+  return { value, errors };
+}
+
+export function validateTokenInput(input) {
+  const errors = [];
+  if (input === null || typeof input !== 'object' || Array.isArray(input)) {
+    return { value: null, errors: [{ field: '', message: 'body must be an object' }] };
+  }
+  const value = {};
+  value.name = text(input, 'name', { required: true, max: 80 }, errors);
+  if (TOKEN_ROLES.includes(input.role)) value.role = input.role;
+  else errors.push({ field: 'role', message: `role must be one of ${TOKEN_ROLES.join(', ')}` });
+  if (input.expiresInDays !== undefined) {
+    if (Number.isInteger(input.expiresInDays) && input.expiresInDays >= 1 && input.expiresInDays <= 365) value.expiresInDays = input.expiresInDays;
+    else errors.push({ field: 'expiresInDays', message: 'expiresInDays must be a whole number from 1 to 365' });
   }
   for (const key of Object.keys(value)) if (value[key] === undefined) delete value[key];
   return { value, errors };
