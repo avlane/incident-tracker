@@ -30,6 +30,7 @@ export function createIncident(input, { id, now }) {
     severity: input.severity,
     status: 'investigating',
     commander: input.commander ?? null,
+    labels: input.labels ?? [],
     affected: input.affected ?? [],
     // Incidents are shown on the public status page unless marked otherwise.
     public: input.public ?? true,
@@ -58,6 +59,7 @@ export function createIncident(input, { id, now }) {
 //
 //   { type: 'post_update', at, author, message, status?, severity?, visibility? }
 //   { type: 'assign', at, commander }
+//   { type: 'set_labels', at, labels }
 export function incidentReducer(incident, action) {
   switch (action.type) {
     case 'post_update': {
@@ -82,6 +84,8 @@ export function incidentReducer(incident, action) {
         updates: [...incident.updates, update],
       };
     }
+    case 'set_labels':
+      return { ...incident, labels: action.labels, updatedAt: action.at };
     case 'assign':
       return { ...incident, commander: action.commander, updatedAt: action.at };
     default:

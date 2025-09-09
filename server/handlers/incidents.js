@@ -2,7 +2,7 @@ import { badRequest, conflict, notFound, unprocessable } from '../errors.js';
 import { canTransition, createIncident, formatIncidentId, incidentReducer } from '../incidents.js';
 import { whoIsOnCall } from '../oncall.js';
 import { filterIncidents, parseFilters } from '../search.js';
-import { validateIncidentInput, validateUpdateInput } from '../validators.js';
+import { validateIncidentInput, validateLabels, validateUpdateInput } from '../validators.js';
 
 export function registerIncidentRoutes(router, { store, clock }) {
   function load(id) {
@@ -56,6 +56,19 @@ export function registerIncidentRoutes(router, { store, clock }) {
 
   router.get('/api/incidents/:id', async ({ params }) => {
     return { body: { incident: load(params.id) } };
+  });
+
+  router.put('/api/incidents/:id/labels', async (ctx) => {
+    const incident = load(ctx.params.id);
+    const body = await ctx.readBody();
+    const { value, errors } = validateLabels(body.labels);
+    if (errors.length > 0) throw unprocessable(errors);
+    const next = incidentReducer(incident, { type: 'set_labels', at: clock(), labels: value });
+    store.transaction(() => {
+      store.put('incidents', next);
+      ctx.audit('incident.labels', next.id, { labels: value });
+    });
+    return { body: { incident: next } };
   });
 
   router.post('/api/incidents/:id/updates', async (ctx) => {

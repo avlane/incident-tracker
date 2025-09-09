@@ -71,6 +71,11 @@ export function validateIncidentInput(input) {
     value.severity = input.severity;
   }
   value.affected = affectedList(input, errors);
+  if (input.labels !== undefined) {
+    const labels = validateLabels(input.labels);
+    errors.push(...labels.errors);
+    if (labels.value) value.labels = labels.value;
+  }
   if (input.public !== undefined) {
     if (typeof input.public === 'boolean') value.public = input.public;
     else errors.push({ field: 'public', message: 'public must be true or false' });
@@ -343,4 +348,19 @@ export function validateTokenInput(input) {
   }
   for (const key of Object.keys(value)) if (value[key] === undefined) delete value[key];
   return { value, errors };
+}
+
+// Labels are short lowercase tags like "db", "customer-facing" or "team:payments".
+const LABEL = /^[a-z0-9][a-z0-9:_-]{0,29}$/;
+
+export function validateLabels(value, field = 'labels') {
+  if (!Array.isArray(value) || value.length > 10) {
+    return { value: null, errors: [{ field, message: `${field} must be a list of at most 10 labels` }] };
+  }
+  const cleaned = [...new Set(value.map((l) => (typeof l === 'string' ? l.trim().toLowerCase() : l)))];
+  const bad = cleaned.filter((l) => typeof l !== 'string' || !LABEL.test(l));
+  if (bad.length > 0) {
+    return { value: null, errors: [{ field, message: 'labels use a-z, 0-9, ":", "_" and "-", start with a letter or digit, and are at most 30 characters' }] };
+  }
+  return { value: cleaned, errors: [] };
 }

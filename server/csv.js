@@ -25,6 +25,7 @@ export const INCIDENT_COLUMNS = [
   { header: 'severity', value: (i) => i.severity },
   { header: 'status', value: (i) => i.status },
   { header: 'commander', value: (i) => i.commander },
+  { header: 'labels', value: (i) => (i.labels ?? []).join(' ') },
   { header: 'services', value: (i) => i.affected.map((a) => a.serviceId).join(' ') },
   { header: 'created_at', value: (i) => i.createdAt },
   { header: 'resolved_at', value: (i) => i.resolvedAt },

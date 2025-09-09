@@ -26,7 +26,7 @@ test('incident rows include duration for resolved incidents only', () => {
     { id: 'INC-0001', now: '2023-10-18T10:00:00.000Z' },
   );
   const open = toCsv([inc], INCIDENT_COLUMNS).split('\r\n')[1];
-  assert.equal(open, 'INC-0001,"Slow, very slow",sev2,investigating,,search api,2023-10-18T10:00:00.000Z,,,1');
+  assert.equal(open, 'INC-0001,"Slow, very slow",sev2,investigating,,,search api,2023-10-18T10:00:00.000Z,,,1');
   inc = incidentReducer(inc, { type: 'post_update', at: '2023-10-18T10:05:00.000Z', message: 'ok', status: 'resolved' });
   const done = toCsv([inc], INCIDENT_COLUMNS).split('\r\n')[1];
   assert.match(done, /,2023-10-18T10:05:00.000Z,300,2$/);

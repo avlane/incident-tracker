@@ -164,3 +164,23 @@ test('GET /api/incidents applies filters and rejects bad ones', async (t) => {
   assert.equal(bad.status, 400);
   assert.equal(bad.json.error.details[0].field, 'severity');
 });
+
+test('labels: set on creation, replace later, filter by them', async (t) => {
+  const srv = await startTestServer();
+  t.after(() => srv.close());
+  const created = await srv.api('POST', '/api/incidents', { title: 'a', severity: 'sev3', labels: ['DB ', 'team:payments', 'db'] });
+  assert.deepEqual(created.json.incident.labels, ['db', 'team:payments']);
+  await srv.api('POST', '/api/incidents', { title: 'b', severity: 'sev3' });
+
+  assert.deepEqual((await srv.api('GET', '/api/incidents?label=team:payments')).json.incidents.map((i) => i.id), ['INC-0001']);
+
+  const replaced = await srv.api('PUT', '/api/incidents/INC-0002/labels', { labels: ['network'] });
+  assert.deepEqual(replaced.json.incident.labels, ['network']);
+  assert.deepEqual((await srv.api('GET', '/api/incidents?label=network')).json.incidents.map((i) => i.id), ['INC-0002']);
+
+  assert.equal((await srv.api('PUT', '/api/incidents/INC-0002/labels', { labels: ['Bad Label!'] })).status, 422);
+  assert.equal((await srv.api('PUT', '/api/incidents/INC-0002/labels', {})).status, 422);
+  assert.equal((await srv.api('POST', '/api/incidents', { title: 'c', severity: 'sev3', labels: new Array(11).fill('x') })).status, 422);
+  const viewer = await srv.as('viewer');
+  assert.equal((await viewer('PUT', '/api/incidents/INC-0002/labels', { labels: [] })).status, 403);
+});

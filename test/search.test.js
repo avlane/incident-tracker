@@ -58,3 +58,24 @@ test('parseFilters reports bad values', () => {
   const { errors } = filters('severity=sev9&from=yesterday&limit=0&open=maybe&sort=color');
   assert.deepEqual(errors.map((e) => e.field).sort(), ['from', 'limit', 'open', 'severity', 'sort']);
 });
+
+test('label filter requires every listed label and search reads labels', () => {
+  const list = [
+    { ...make(1, { title: 'One' }), labels: ['db', 'customer-facing'] },
+    { ...make(2, { title: 'Two' }), labels: ['db'] },
+    { ...make(3, { title: 'Three' }), labels: [] },
+  ];
+  const run = (q) => filterIncidents(list, filters(q).filters).items.map((i) => i.id).sort();
+  assert.deepEqual(run('label=db'), ['INC-0001', 'INC-0002']);
+  assert.deepEqual(run('label=db,customer-facing'), ['INC-0001']);
+  assert.deepEqual(run('label=DB'), ['INC-0001', 'INC-0002']);
+  assert.deepEqual(run('q=customer-facing'), ['INC-0001']);
+  assert.deepEqual(run('label=nope'), []);
+});
+
+test('incidents from before labels existed still filter', () => {
+  const old = make(1);
+  delete old.labels;
+  assert.equal(filterIncidents([old], filters('label=db').filters).total, 0);
+  assert.equal(filterIncidents([old], filters('').filters).total, 1);
+});

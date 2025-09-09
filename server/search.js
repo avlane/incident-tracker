@@ -46,6 +46,8 @@ export function parseFilters(params) {
     severity: listParam(params, 'severity', SEVERITIES, errors),
     status: listParam(params, 'status', STATUSES, errors),
     service: params.get('service') || undefined,
+    // every label listed must be present
+    label: (params.get('label') ?? '').split(',').map((l) => l.trim().toLowerCase()).filter(Boolean),
     from: dateParam(params, 'from', errors),
     to: dateParam(params, 'to', errors),
     limit: intParam(params, 'limit', 50, { min: 1, max: MAX_LIMIT }, errors),
@@ -65,7 +67,7 @@ export function parseFilters(params) {
 }
 
 function haystack(incident) {
-  const parts = [incident.id, incident.title, incident.summary, incident.commander ?? ''];
+  const parts = [incident.id, incident.title, incident.summary, incident.commander ?? '', ...(incident.labels ?? [])];
   for (const update of incident.updates) parts.push(update.message);
   return parts.join('\n').toLowerCase();
 }
@@ -85,6 +87,7 @@ export function matchesFilters(incident, filters) {
   if (filters.severity && !filters.severity.includes(incident.severity)) return false;
   if (filters.status && !filters.status.includes(incident.status)) return false;
   if (filters.open !== undefined && isOpen(incident) !== filters.open) return false;
+  if (filters.label?.length > 0 && !filters.label.every((l) => (incident.labels ?? []).includes(l))) return false;
   if (filters.service && !incident.affected.some((a) => a.serviceId === filters.service)) return false;
   const created = Date.parse(incident.createdAt);
   if (filters.from !== undefined && created < filters.from) return false;
