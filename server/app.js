@@ -1,6 +1,7 @@
 import { HttpError, tooManyRequests } from './errors.js';
 import { bearerToken, clientIp, parseCookies, readJson, sendJson, sendText } from './http.js';
 import { createRateLimiter } from './ratelimit.js';
+import { accessLogLine, requestIdFor } from './requestlog.js';
 import { createAuditLog } from './audit.js';
 import { createDispatcher } from './dispatcher.js';
 import { createAuthService, hasRole } from './auth.js';
@@ -53,6 +54,8 @@ export function createApp({
   dispatcherOptions = {},
   // Directory holding the built client (client/dist); omit to serve the API only.
   staticDir = null,
+  // Write one JSON line per request to logger.info.
+  accessLog = false,
 } = {}) {
   const router = createRouter();
   const auth = createAuthService({ store, clock, hashParams });
@@ -101,6 +104,7 @@ export function createApp({
       error.headers = { allow: found.allowed.join(', ') };
       throw error;
     }
+    req.logContext.user = user;
     let parsed;
     const ctx = {
       ...deps,
@@ -135,6 +139,18 @@ export function createApp({
   const serveStatic = staticDir ? createStaticHandler(staticDir) : null;
 
   async function handle(req, res) {
+    const id = requestIdFor(req);
+    const started = Date.now();
+    res.setHeader('x-request-id', id);
+    // Handlers fill this in so the log line can name the caller.
+    req.logContext = {};
+    if (accessLog) {
+      res.on('finish', () => {
+        logger.info(
+          accessLogLine({ id, req, status: res.statusCode, ms: Date.now() - started, user: req.logContext.user, ip: clientIp(req, trustProxy), at: clock() }),
+        );
+      });
+    }
     try {
       const { pathname } = new URL(req.url, 'http://localhost');
       if (serveStatic && !pathname.startsWith('/api/')) {
@@ -148,7 +164,7 @@ export function createApp({
         if (err.details !== undefined) body.error.details = err.details;
         sendJson(res, err.status, body, err.headers);
       } else {
-        logger.error(err);
+        logger.error(`request ${id} failed:`, err);
         sendJson(res, 500, { error: { message: 'internal error' } });
       }
     }

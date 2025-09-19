@@ -9,6 +9,7 @@ const store = await openStore(config);
 const app = createApp({
   store,
   trustProxy: config.trustProxy,
+  accessLog: true,
   staticDir: existsSync(config.staticDir) ? config.staticDir : null,
   webhookPolicy: { allowPrivate: config.allowPrivateWebhooks },
 });
