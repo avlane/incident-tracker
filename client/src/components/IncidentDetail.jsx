@@ -63,7 +63,6 @@ export default function IncidentDetail({ api, id }) {
       <Timeline incident={incident} />
       {canRespond(user) && incident.status === 'resolved' && (
         <PostmortemEditor
-          key={incident.postmortem?.updatedAt ?? 'new'}
           api={api}
           incident={incident}
           onSaved={(postmortem) => setIncident({ ...incident, postmortem })}
