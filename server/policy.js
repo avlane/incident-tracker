@@ -7,6 +7,7 @@
 //   admin      can change services, schedules, users and settings
 
 const PUBLIC = [
+  ['GET', /^\/healthz\/?$/],
   ['GET', /^\/api\/status\/?$/],
   ['GET', /^\/api\/auth\/me\/?$/],
   ['POST', /^\/api\/auth\/login\/?$/],

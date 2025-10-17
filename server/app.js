@@ -13,6 +13,7 @@ import { registerActionItemRoutes } from './handlers/actionitems.js';
 import { registerAuditRoutes } from './handlers/audit.js';
 import { registerAuthRoutes, SESSION_COOKIE } from './handlers/auth.js';
 import { registerExportRoutes } from './handlers/export.js';
+import { registerHealthRoutes } from './handlers/health.js';
 import { registerIncidentRoutes } from './handlers/incidents.js';
 import { registerMaintenanceRoutes } from './handlers/maintenance.js';
 import { registerMetricsRoutes } from './handlers/metrics.js';
@@ -25,6 +26,7 @@ import { registerUserRoutes } from './handlers/users.js';
 import { registerWebhookRoutes } from './handlers/webhooks.js';
 
 const modules = [
+  registerHealthRoutes,
   registerAuthRoutes,
   registerAuditRoutes,
   registerActionItemRoutes,
