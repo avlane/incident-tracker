@@ -1,14 +1,16 @@
 import { parseArgs } from 'node:util';
 import { ROLES } from './auth.js';
+import { pruneStore } from './prune.js';
 
 const USAGE = `usage:
   cli.js create-user --email <email> --name <name> --role <${ROLES.join('|')}> (--password-stdin | env INCIDENT_PASSWORD)
   cli.js list-users
+  cli.js prune [--delivery-days <n>]
   cli.js migrate-store --from <json file> --to <sqlite file>`;
 
 // Command implementations take their collaborators as arguments so they can be
 // tested without touching the real store, stdin or process.env.
-export async function runCommand(argv, { auth, readStdin, env = {}, out = () => {}, openJson, openSqlite }) {
+export async function runCommand(argv, { auth, store, now = () => new Date().toISOString(), readStdin, env = {}, out = () => {}, openJson, openSqlite }) {
   const [command, ...rest] = argv;
   switch (command) {
     case 'create-user': {
@@ -32,6 +34,14 @@ export async function runCommand(argv, { auth, readStdin, env = {}, out = () => 
     }
     case 'list-users': {
       for (const u of auth.listUsers()) out(`${u.id}  ${u.role.padEnd(9)} ${u.email}  ${u.name}${u.disabled ? '  [disabled]' : ''}`);
+      return 0;
+    }
+    case 'prune': {
+      const { values } = parseArgs({ args: rest, options: { 'delivery-days': { type: 'string', default: '30' } } });
+      const days = Number(values['delivery-days']);
+      if (!Number.isInteger(days) || days < 1) throw new Error('--delivery-days must be a whole number of days, 1 or more');
+      const removed = pruneStore(store, { now: now(), deliveryDays: days });
+      out(`removed ${removed.deliveries} old deliveries, ${removed.sessions} expired sessions, ${removed.tokens} expired tokens`);
       return 0;
     }
     case 'migrate-store': {

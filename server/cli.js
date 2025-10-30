@@ -21,6 +21,7 @@ const auth = store ? createAuthService({ store, clock: () => new Date().toISOStr
 try {
   process.exitCode = await runCommand(argv, {
     auth,
+    store,
     readStdin,
     env: process.env,
     out: (line) => console.log(line),
