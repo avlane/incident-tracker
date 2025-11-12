@@ -89,6 +89,10 @@ Roles: `viewer` can read, `responder` can open incidents and post updates,
 `node:crypto`; session tokens are random, sent as an HttpOnly cookie (or a
 bearer token) and only their SHA-256 is stored.
 
+## Continuous integration
+
+`.github/workflows/test.yml` runs `npm test` on Node 22 and 24.
+
 ## HTTP API
 
 | Method and path | What it does |
