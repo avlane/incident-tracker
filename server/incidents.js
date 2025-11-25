@@ -31,6 +31,7 @@ export function createIncident(input, { id, now }) {
     status: 'investigating',
     commander: input.commander ?? null,
     labels: input.labels ?? [],
+    links: [],
     affected: input.affected ?? [],
     // Incidents are shown on the public status page unless marked otherwise.
     public: input.public ?? true,

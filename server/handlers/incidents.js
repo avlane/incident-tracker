@@ -1,5 +1,6 @@
 import { badRequest, conflict, notFound, unprocessable } from '../errors.js';
 import { canTransition, createIncident, formatIncidentId, incidentReducer } from '../incidents.js';
+import { LINK_KINDS, linkIncidents, unlinkIncidents } from '../links.js';
 import { whoIsOnCall } from '../oncall.js';
 import { filterIncidents, parseFilters } from '../search.js';
 import { validateIncidentInput, validateLabels, validateUpdateInput } from '../validators.js';
@@ -56,6 +57,35 @@ export function registerIncidentRoutes(router, { store, clock }) {
 
   router.get('/api/incidents/:id', async ({ params }) => {
     return { body: { incident: load(params.id) } };
+  });
+
+  router.post('/api/incidents/:id/links', async (ctx) => {
+    const incident = load(ctx.params.id);
+    const body = await ctx.readBody();
+    if (typeof body.target !== 'string' || !LINK_KINDS.includes(body.kind)) {
+      throw unprocessable([{ field: 'kind', message: `send a target incident id and a kind of ${LINK_KINDS.join(', ')}` }]);
+    }
+    if (body.target === incident.id) throw unprocessable([{ field: 'target', message: 'an incident cannot link to itself' }]);
+    const target = load(body.target);
+    const [a, b] = linkIncidents(incident, target, body.kind, clock());
+    store.transaction(() => {
+      store.put('incidents', a);
+      store.put('incidents', b);
+      ctx.audit('incident.link', a.id, { target: b.id, kind: body.kind });
+    });
+    return { status: 201, body: { incident: a } };
+  });
+
+  router.delete('/api/incidents/:id/links/:target', async (ctx) => {
+    const incident = load(ctx.params.id);
+    const target = load(ctx.params.target);
+    const [a, b] = unlinkIncidents(incident, target, clock());
+    store.transaction(() => {
+      store.put('incidents', a);
+      store.put('incidents', b);
+      ctx.audit('incident.unlink', a.id, { target: b.id });
+    });
+    return { body: { incident: a } };
   });
 
   router.put('/api/incidents/:id/labels', async (ctx) => {
