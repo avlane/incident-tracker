@@ -35,3 +35,13 @@ export const INCIDENT_COLUMNS = [
   },
   { header: 'updates', value: (i) => i.updates.length },
 ];
+
+export const AUDIT_COLUMNS = [
+  { header: 'id', value: (e) => e.id },
+  { header: 'at', value: (e) => e.at },
+  { header: 'actor', value: (e) => e.actor?.email ?? e.actor?.name ?? '' },
+  { header: 'action', value: (e) => e.action },
+  { header: 'target', value: (e) => e.target },
+  { header: 'ip', value: (e) => e.ip },
+  { header: 'meta', value: (e) => (e.meta && Object.keys(e.meta).length > 0 ? JSON.stringify(e.meta) : '') },
+];

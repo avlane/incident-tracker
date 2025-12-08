@@ -43,3 +43,8 @@ test('self-service account actions need only a signed-in user', () => {
   assert.equal(requiredRole('DELETE', '/api/auth/sessions'), 'viewer');
   assert.equal(requiredRole('POST', '/api/auth/password'), 'viewer');
 });
+
+test('the audit CSV is admin-only like the audit log', () => {
+  assert.equal(requiredRole('GET', '/api/export/audit.csv'), 'admin');
+  assert.equal(requiredRole('GET', '/api/export/incidents.csv'), 'viewer');
+});

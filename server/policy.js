@@ -15,7 +15,10 @@ const PUBLIC = [
 ];
 
 // Reads that expose who did what, or credentials-adjacent settings.
-const ADMIN_READ = [['GET', /^\/api\/(audit|users|webhooks|tokens)(\/|$)/]];
+const ADMIN_READ = [
+  ['GET', /^\/api\/(audit|users|webhooks|tokens)(\/|$)/],
+  ['GET', /^\/api\/export\/audit\.csv$/],
+];
 
 // Things any signed-in user may do to their own account.
 const SELF_SERVICE = [
