@@ -95,20 +95,86 @@ bearer token) and only their SHA-256 is stored.
 
 ## HTTP API
 
-| Method and path | What it does |
-|---|---|
-| `POST /api/incidents` | Open an incident (`title`, `severity`, optional `summary`, `commander`, `affected`, `public`) |
-| `GET /api/incidents` | List and search: `q`, `severity`, `status`, `open`, `service`, `from`, `to`, `sort`, `limit`, `offset` |
-| `GET /api/incidents/:id` | One incident with its timeline |
-| `POST /api/incidents/:id/updates` | Post an update, optionally changing status or severity; `visibility: "internal"` keeps it off the status page |
-| `GET /api/incidents/:id/postmortem` | Markdown postmortem draft |
-| `GET /api/export/incidents.csv` | CSV export, same filters as the list |
-| `GET`/`POST /api/services`, `GET`/`PATCH`/`DELETE /api/services/:id` | Services and their components |
-| `GET`/`POST /api/oncall`, `POST /api/oncall/:id/overrides` | Rotations and overrides; new incidents default their commander to whoever is on call |
-| `GET /api/status` | Public status page data |
-| `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` | Sign in, sign out, who am I |
+All routes are JSON under `/api` unless noted. "Role" is the least role that may call it; anything not listed as public needs a session cookie or `Authorization: Bearer <token>`.
+
+| Method and path | Role | What it does |
+|---|---|---|
+| `GET /healthz` | public | Liveness plus a store check |
+| `GET /api/status` | public | Status page data: services, active and recent incidents, maintenance |
+| `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` | public | Sign in, out, who am I |
+| `POST /api/auth/password`, `DELETE /api/auth/sessions` | viewer | Change your password; sign out everywhere |
+| `GET /api/incidents` | viewer | List and search: `q`, `severity`, `status`, `open`, `service`, `label`, `from`, `to`, `sort`, `limit`, `offset` |
+| `GET /api/incidents/:id` | viewer | One incident with its timeline |
+| `POST /api/incidents` | responder | Open an incident (`title`, `severity`, optional `summary`, `commander`, `affected`, `labels`, `public`) |
+| `POST /api/incidents/:id/updates` | responder | Post an update, optionally changing status or severity; `visibility: "internal"` keeps it off the status page and out of webhooks |
+| `PUT /api/incidents/:id/labels` | responder | Replace the labels |
+| `POST /api/incidents/:id/links`, `DELETE /api/incidents/:id/links/:target` | responder | Link incidents as related, duplicate or causal |
+| `GET /api/incidents/:id/postmortem` | viewer | Markdown postmortem draft |
+| `PUT /api/incidents/:id/postmortem` | responder | Store the written postmortem and its action items |
+| `GET /api/action-items` | viewer | Action items across postmortems (`owner`, `overdue=true`) |
+| `GET /api/metrics` | viewer | Time to respond and resolve, by severity, service and week |
+| `GET /api/export/incidents.csv` | viewer | CSV export with the list filters |
+| `GET /api/export/audit.csv`, `GET /api/audit`, `GET /api/audit/verify` | admin | Audit log, and a check of its hash chain |
+| `GET`/`POST /api/services`, `GET`/`PATCH`/`DELETE /api/services/:id` | viewer / admin | Services and components |
+| `GET`/`POST /api/oncall`, `POST /api/oncall/:id/overrides`, `DELETE /api/oncall/:id` | viewer / responder / admin | Rotations, with backup and overrides; new incidents default their commander to whoever is on call |
+| `GET`/`POST /api/maintenance`, `GET`/`PATCH /api/maintenance/:id` | viewer / admin | Scheduled maintenance windows |
+| `GET`/`POST /api/users`, `PATCH /api/users/:id` | admin | User management |
+| `GET`/`POST /api/tokens`, `DELETE /api/tokens/:id` | admin | API tokens for scripts (viewer or responder only) |
+| `/api/webhooks` and `/api/webhooks/:id/{rotate-secret,test,deliveries}` | admin | Webhook registry |
 
 A resolved incident can only be reopened (moved back to `investigating`).
+Requests are rate limited (300 a minute per address, and 10 login attempts per
+15 minutes); `429` responses carry `Retry-After`.
+
+## Webhooks
+
+Register an HTTPS URL and, optionally, the events you want (`incident.created`,
+`incident.updated`, `incident.resolved`). The secret is shown once. Each
+request is a JSON body of the incident's *public* view (the same data as the
+status page; internal updates and commanders are never sent) with these headers:
+
+```
+X-Incident-Event:      incident.updated
+X-Incident-Delivery:   dlv_1a2b3c4d5e6f
+X-Incident-Signature:  t=1718000000,v1=<hex HMAC-SHA256>
+```
+
+The signature is `HMAC-SHA256(secret, "<t>.<raw body>")`. Verify it against the
+raw bytes you received, in constant time, and reject timestamps more than a few
+minutes old:
+
+```js
+import { createHmac, timingSafeEqual } from 'node:crypto';
+
+function verify(secret, header, rawBody, nowMs = Date.now()) {
+  const fields = Object.fromEntries(header.split(',').map((p) => p.split('=')));
+  if (Math.abs(nowMs / 1000 - Number(fields.t)) > 300) return false;
+  const expected = createHmac('sha256', secret).update(`${fields.t}.${rawBody}`).digest();
+  const given = Buffer.from(fields.v1 ?? '', 'hex');
+  return given.length === expected.length && timingSafeEqual(given, expected);
+}
+```
+
+Failed deliveries (network errors, timeouts, 429, 5xx) are retried after 2
+seconds, 10 seconds and a minute; other 4xx answers and redirects are not
+retried or followed. Each attempt is recorded and listed by
+`GET /api/webhooks/:id/deliveries` (status codes only, never bodies). Hosts are
+checked when the webhook is saved and again when it is sent, and addresses in
+private ranges are refused. The second check cannot rule out DNS rebinding, so
+run the server where it cannot reach internal services if that matters to you.
+
+## Operating notes
+
+- `node server/cli.js prune` removes old webhook deliveries, expired sessions
+  and expired tokens. It never touches incidents or the audit log.
+- The audit log is append-only and hash-chained; `GET /api/audit/verify`
+  reports where the chain breaks if an entry is edited or removed in the
+  database. It detects tampering after the fact, not by someone who can
+  rewrite the whole chain.
+- `SIGTERM` stops accepting connections, lets in-flight webhook deliveries
+  finish (10 seconds at most) and closes the store.
+- Requests get an `X-Request-Id` and one JSON access-log line each; query
+  strings are left out of the log.
 
 ## Client
 
