@@ -58,6 +58,8 @@ export function createApp({
   staticDir = null,
   // Write one JSON line per request to logger.info.
   accessLog = false,
+  // Absolute URL of the client, used for links in the Atom feed.
+  publicUrl = 'http://localhost:3000',
 } = {}) {
   const router = createRouter();
   const auth = createAuthService({ store, clock, hashParams });
@@ -78,7 +80,7 @@ export function createApp({
   // Expired sessions are also ignored when presented, this just keeps them from piling up.
   const sessionSweeper = setInterval(() => auth.purgeExpired(), 3_600_000);
   sessionSweeper.unref();
-  const deps = { store, clock, logger, auth, limiters, auditLog, webhookPolicy, dispatcher, trustProxy };
+  const deps = { store, clock, logger, auth, limiters, auditLog, webhookPolicy, dispatcher, trustProxy, publicUrl };
   for (const register of modules) register(router, deps);
 
   // Handlers return { status?, body?, text?, contentType?, headers? }.

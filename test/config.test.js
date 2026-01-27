@@ -8,6 +8,7 @@ test('defaults', () => {
     host: '127.0.0.1',
     trustProxy: false,
     allowPrivateWebhooks: false,
+    publicUrl: 'http://localhost:3000',
     staticDir: 'client/dist',
     store: 'json',
     dbFile: 'data/incidents.db',
@@ -22,6 +23,7 @@ test('environment overrides', () => {
     TRUST_PROXY: '1',
     ALLOW_PRIVATE_WEBHOOKS: '1',
     STORE: 'sqlite',
+    PUBLIC_URL: 'https://status.example.com',
     DB_FILE: '/var/lib/it/db.sqlite',
   });
   assert.equal(config.port, 8080);
@@ -29,6 +31,7 @@ test('environment overrides', () => {
   assert.equal(config.trustProxy, true);
   assert.equal(config.allowPrivateWebhooks, true);
   assert.equal(config.store, 'sqlite');
+  assert.equal(config.publicUrl, 'https://status.example.com');
   assert.equal(config.dbFile, '/var/lib/it/db.sqlite');
 });
 

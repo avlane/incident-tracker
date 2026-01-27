@@ -8,7 +8,7 @@
 
 const PUBLIC = [
   ['GET', /^\/healthz\/?$/],
-  ['GET', /^\/api\/status\/?$/],
+  ['GET', /^\/api\/status(\.atom)?\/?$/],
   ['GET', /^\/api\/auth\/me\/?$/],
   ['POST', /^\/api\/auth\/login\/?$/],
   ['POST', /^\/api\/auth\/logout\/?$/],

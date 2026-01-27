@@ -33,6 +33,7 @@ Settings come from environment variables:
 | `STORE` | `json` | `json` or `sqlite` |
 | `DATA_FILE` | `data/incidents.json` | JSON store location |
 | `DB_FILE` | `data/incidents.db` | SQLite store location |
+| `PUBLIC_URL` | `http://localhost:<PORT>` | Where the client is reachable, for links in the Atom feed |
 | `TRUST_PROXY` | off | Set to `1` to believe `X-Forwarded-For` (rate limits and audit use it) |
 | `ALLOW_PRIVATE_WEBHOOKS` | off | Set to `1` to allow `http://` and internal webhook targets (development) |
 
@@ -100,7 +101,7 @@ All routes are JSON under `/api` unless noted. "Role" is the least role that may
 | Method and path | Role | What it does |
 |---|---|---|
 | `GET /healthz` | public | Liveness plus a store check |
-| `GET /api/status` | public | Status page data: services, active and recent incidents, maintenance |
+| `GET /api/status`, `GET /api/status.atom` | public | Status page data: services, active and recent incidents, maintenance; the same as an Atom feed |
 | `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` | public | Sign in, out, who am I |
 | `POST /api/auth/password`, `DELETE /api/auth/sessions` | viewer | Change your password; sign out everywhere |
 | `GET /api/incidents` | viewer | List and search: `q`, `severity`, `status`, `open`, `service`, `label`, `from`, `to`, `sort`, `limit`, `offset` |

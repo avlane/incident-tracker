@@ -11,6 +11,7 @@ const app = createApp({
   store,
   trustProxy: config.trustProxy,
   accessLog: true,
+  publicUrl: config.publicUrl,
   staticDir: existsSync(config.staticDir) ? config.staticDir : null,
   webhookPolicy: { allowPrivate: config.allowPrivateWebhooks },
 });

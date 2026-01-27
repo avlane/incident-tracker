@@ -53,3 +53,23 @@ test('the status endpoint includes active and upcoming maintenance', async (t) =
   assert.deepEqual(res.json.maintenance.active.map((w) => w.title), ['Now']);
   assert.deepEqual(res.json.maintenance.upcoming.map((w) => w.title), ['Later']);
 });
+
+test('GET /api/status.atom is a public Atom feed of public updates only', async (t) => {
+  const srv = await startTestServer({ auth: false, app: { publicUrl: 'https://status.example.com' } });
+  t.after(() => srv.close());
+  const admin = (await import('./helpers.js')).startTestServer;
+  void admin;
+  const withAuth = await startTestServer({ app: { publicUrl: 'https://status.example.com' } });
+  t.after(() => withAuth.close());
+  await withAuth.api('POST', '/api/incidents', { title: 'Search slow', severity: 'sev3', commander: 'priya', summary: 'We see slow searches.' });
+  await withAuth.api('POST', '/api/incidents/INC-0001/updates', { message: 'internal chatter', visibility: 'internal' });
+
+  const res = await withAuth.anon('GET', '/api/status.atom');
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get('content-type'), /^application\/atom\+xml/);
+  assert.match(res.text, /<title>\[Investigating\] Search slow<\/title>/);
+  assert.match(res.text, /https:\/\/status\.example\.com\/#\/status/);
+  assert.ok(!res.text.includes('internal chatter'));
+  assert.ok(!res.text.includes('priya'));
+  assert.equal((await srv.api('GET', '/api/status.atom')).status, 200);
+});
