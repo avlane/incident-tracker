@@ -57,8 +57,6 @@ test('the status endpoint includes active and upcoming maintenance', async (t) =
 test('GET /api/status.atom is a public Atom feed of public updates only', async (t) => {
   const srv = await startTestServer({ auth: false, app: { publicUrl: 'https://status.example.com' } });
   t.after(() => srv.close());
-  const admin = (await import('./helpers.js')).startTestServer;
-  void admin;
   const withAuth = await startTestServer({ app: { publicUrl: 'https://status.example.com' } });
   t.after(() => withAuth.close());
   await withAuth.api('POST', '/api/incidents', { title: 'Search slow', severity: 'sev3', commander: 'priya', summary: 'We see slow searches.' });
