@@ -1,5 +1,6 @@
 import { buildStatusPage } from '../statuspage.js';
 import { buildAtomFeed } from '../statusfeed.js';
+import { buildUptime } from '../uptime.js';
 
 // Public, read-only. Deliberately has no dependency on anything else in the
 // request, so it stays reachable if other parts of the API grow restrictions.
@@ -19,6 +20,11 @@ export function registerStatusRoutes(router, { store, clock, publicUrl }) {
   }));
 
   router.get('/api/status', async () => {
-    return { body: page(), headers: { 'cache-control': 'public, max-age=30' } };
+    const uptime = buildUptime({
+      services: store.list('services'),
+      incidents: store.list('incidents'),
+      now: clock(),
+    });
+    return { body: { ...page(), uptime }, headers: { 'cache-control': 'public, max-age=30' } };
   });
 }

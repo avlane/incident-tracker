@@ -71,3 +71,27 @@ test('GET /api/status.atom is a public Atom feed of public updates only', async 
   assert.ok(!res.text.includes('priya'));
   assert.equal((await srv.api('GET', '/api/status.atom')).status, 200);
 });
+
+test('GET /api/status includes 90 days of uptime per service', async (t) => {
+  let now = Date.parse('2026-02-25T00:00:00.000Z');
+  const srv = await startTestServer({ clock: () => new Date(now).toISOString() });
+  t.after(() => srv.close());
+  await srv.api('POST', '/api/services', { name: 'Checkout' });
+  await srv.api('POST', '/api/incidents', {
+    title: 'Down',
+    severity: 'sev1',
+    affected: [{ serviceId: 'checkout', impact: 'major_outage' }],
+  });
+  now += 6 * 3_600_000;
+  await srv.api('POST', '/api/incidents/INC-0001/updates', { message: 'back', status: 'resolved' });
+  now += 6 * 3_600_000;
+
+  const res = await srv.anon('GET', '/api/status');
+  assert.equal(res.json.uptime.days, 90);
+  const checkout = res.json.uptime.services[0];
+  assert.equal(checkout.id, 'checkout');
+  assert.equal(checkout.days.length, 90);
+  assert.equal(checkout.days.at(-1).status, 'major_outage');
+  assert.equal(checkout.days.at(-2).status, 'operational');
+  assert.ok(checkout.uptimePercent < 100 && checkout.uptimePercent > 99.7);
+});
