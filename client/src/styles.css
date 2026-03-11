@@ -354,3 +354,19 @@ button.link {
 
 .bar.opened { background: var(--sev2); }
 .bar.resolved { background: #1f7a45; }
+
+.uptime {
+  margin: 8px 0;
+}
+
+.bars {
+  display: flex;
+  gap: 1px;
+  height: 22px;
+}
+
+.bars .day {
+  flex: 1;
+  border-radius: 1px;
+  min-width: 2px;
+}

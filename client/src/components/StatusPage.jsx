@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { COMPONENT_LABEL, describeAffected, statusClass } from '../lib/status.js';
 import { STATUS_LABEL } from '../lib/labels.js';
+import { dayBars, formatUptime, uptimeById } from '../lib/uptime.js';
 
 function PublicIncident({ incident }) {
   return (
@@ -61,6 +62,7 @@ export default function StatusPage({ api }) {
 
   if (error && !page) return <p className="error">Status is unavailable right now: {error}</p>;
   if (!page) return <p>Loading status...</p>;
+  const uptime = uptimeById(page.uptime);
 
   return (
     <section>
@@ -78,6 +80,18 @@ export default function StatusPage({ api }) {
               <strong>{service.name}</strong>
               <span className={`pill ${statusClass(service.status)}`}>{COMPONENT_LABEL[service.status]}</span>
             </div>
+            {uptime[service.id] && (
+              <div className="uptime">
+                <div className="bars" role="img" aria-label={`Daily status for the last ${page.uptime.days} days`}>
+                  {dayBars(uptime[service.id].days).map((bar) => (
+                    <span key={bar.date} className={`day ${bar.className}`} title={bar.title} />
+                  ))}
+                </div>
+                <div className="note">
+                  {formatUptime(uptime[service.id].uptimePercent)} uptime over {page.uptime.days} days
+                </div>
+              </div>
+            )}
             <ul className="components">
               {service.components.map((c) => (
                 <li key={c.id}>
