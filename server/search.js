@@ -1,3 +1,4 @@
+import { parseRangeEnd, parseRangeStart } from './dates.js';
 import { SEVERITIES, STATUSES, isOpen } from './incidents.js';
 
 // Filtering, searching and ordering of incident lists.
@@ -17,10 +18,10 @@ function listParam(params, name, allowed, errors) {
   return values;
 }
 
-function dateParam(params, name, errors) {
+function dateParam(params, name, errors, parse = parseRangeStart) {
   const raw = params.get(name);
   if (raw === null || raw === '') return undefined;
-  const t = Date.parse(raw);
+  const t = parse(raw);
   if (Number.isNaN(t)) {
     errors.push({ field: name, message: `${name} must be a date` });
     return undefined;
@@ -49,7 +50,7 @@ export function parseFilters(params) {
     // every label listed must be present
     label: (params.get('label') ?? '').split(',').map((l) => l.trim().toLowerCase()).filter(Boolean),
     from: dateParam(params, 'from', errors),
-    to: dateParam(params, 'to', errors),
+    to: dateParam(params, 'to', errors, parseRangeEnd),
     limit: intParam(params, 'limit', 50, { min: 1, max: MAX_LIMIT }, errors),
     offset: intParam(params, 'offset', 0, { min: 0, max: 1_000_000 }, errors),
   };

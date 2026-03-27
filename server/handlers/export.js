@@ -1,3 +1,4 @@
+import { parseRangeEnd, parseRangeStart } from '../dates.js';
 import { badRequest } from '../errors.js';
 import { AUDIT_COLUMNS, INCIDENT_COLUMNS, toCsv } from '../csv.js';
 import { filterIncidents, parseFilters } from '../search.js';
@@ -21,13 +22,13 @@ export function registerExportRoutes(router, { store, auditLog }) {
     for (const name of ['from', 'to']) {
       if (query.get(name) && Number.isNaN(Date.parse(query.get(name)))) throw badRequest(`${name} must be a date`);
     }
-    const iso = (name) => (query.get(name) ? new Date(query.get(name)).toISOString() : undefined);
+    const iso = (name, parse) => (query.get(name) ? new Date(parse(query.get(name))).toISOString() : undefined);
     const { entries } = auditLog.list({
       action: query.get('action') || undefined,
       actor: query.get('actor') || undefined,
       target: query.get('target') || undefined,
-      from: iso('from'),
-      to: iso('to'),
+      from: iso('from', parseRangeStart),
+      to: iso('to', parseRangeEnd),
       limit: 10_000,
     });
     return {
