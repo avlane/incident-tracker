@@ -161,3 +161,29 @@ test('allowPrivate skips the check', async () => {
   await dispatcher.idle();
   assert.deepEqual(calls, ['http://127.0.0.1:9000/x']);
 });
+
+test('a slack-format webhook receives a Slack message, signed over those bytes', async () => {
+  const { dispatcher, calls } = setup({
+    hooks: [{ id: 'wh_s', url: 'https://hooks.example.com/slack', events: [], active: true, secret: 'whsec_s', format: 'slack' }],
+  });
+  dispatcher.emit('incident.created', {
+    id: 'INC-0001',
+    title: 'Checkout down',
+    status: 'investigating',
+    affected: [],
+    updates: [{ at: '2026-04-22T10:00:00.000Z', status: 'investigating', message: 'Looking into it' }],
+  });
+  await dispatcher.idle();
+  const { init } = calls[0];
+  const body = JSON.parse(init.body);
+  assert.equal(body.text, 'New incident: INC-0001 Checkout down (Investigating)');
+  assert.equal(body.type, undefined);
+  assert.equal(verifySignature({ secret: 'whsec_s', header: init.headers['x-incident-signature'], body: init.body, nowMs: Date.now() }), true);
+});
+
+test('webhooks saved before formats existed still get JSON events', async () => {
+  const { dispatcher, calls } = setup();
+  dispatcher.emit('incident.created', incident);
+  await dispatcher.idle();
+  assert.equal(JSON.parse(calls[0].init.body).type, 'incident.created');
+});

@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { lookup } from 'node:dns/promises';
 import { isPrivateAddress } from './urlguard.js';
+import { formatPayload } from './webhookformat.js';
 import { EVENT_HEADER, SIGNATURE_HEADER, buildEvent, signatureHeader } from './webhooks.js';
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -70,7 +71,8 @@ export function createDispatcher({
   }
 
   async function deliver(webhook, event, { retry = true } = {}) {
-    const body = JSON.stringify(event);
+    // The signature covers exactly the bytes sent, whichever format they are in.
+    const body = JSON.stringify(formatPayload(webhook.format, event));
     const delivery = {
       id: `dlv_${randomBytes(6).toString('hex')}`,
       webhookId: webhook.id,

@@ -2,6 +2,7 @@ import { ROLES, TOKEN_ROLES } from './auth.js';
 import { IMPACTS, SEVERITIES, STATUSES } from './incidents.js';
 import { MAX_WINDOW_MS } from './maintenance.js';
 import { webhookUrlProblem } from './urlguard.js';
+import { FORMATS } from './webhookformat.js';
 import { EVENTS } from './webhooks.js';
 
 // Validators return { value, errors }. `value` is the cleaned input and is
@@ -220,6 +221,10 @@ export function validateWebhookInput(input, { partial = false, allowPrivate = fa
     const ok = Array.isArray(input.events) && input.events.every((e) => EVENTS.includes(e));
     if (ok) value.events = [...new Set(input.events)];
     else errors.push({ field: 'events', message: `events must be a list drawn from ${EVENTS.join(', ')}` });
+  }
+  if (input.format !== undefined) {
+    if (FORMATS.includes(input.format)) value.format = input.format;
+    else errors.push({ field: 'format', message: `format must be one of ${FORMATS.join(', ')}` });
   }
   if (input.active !== undefined) {
     if (typeof input.active === 'boolean') value.active = input.active;

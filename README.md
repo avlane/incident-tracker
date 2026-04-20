@@ -156,6 +156,10 @@ function verify(secret, header, rawBody, nowMs = Date.now()) {
 }
 ```
 
+Set `format` to `slack` to get a Slack incoming-webhook message (headline, status,
+affected services and the newest public update) instead of the JSON event.
+The signature headers are sent either way, over the bytes actually sent.
+
 Failed deliveries (network errors, timeouts, 429, 5xx) are retried after 2
 seconds, 10 seconds and a minute; other 4xx answers and redirects are not
 retried or followed. Each attempt is recorded and listed by

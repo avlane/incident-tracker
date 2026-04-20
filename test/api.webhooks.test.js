@@ -104,3 +104,14 @@ test('send test posts a ping and reports the outcome without retrying', async (t
   assert.equal(calls.length, 1);
   assert.equal(calls[0].type, 'webhook.ping');
 });
+
+test('format defaults to json, can be slack, and rejects anything else', async (t) => {
+  const srv = await startTestServer();
+  t.after(() => srv.close());
+  assert.equal((await srv.api('POST', '/api/webhooks', { url })).json.webhook.format, 'json');
+  const slack = await srv.api('POST', '/api/webhooks', { url: 'https://hooks.slack.example.com/T0/B0/x', format: 'slack' });
+  assert.equal(slack.json.webhook.format, 'slack');
+  assert.equal((await srv.api('POST', '/api/webhooks', { url, format: 'xml' })).status, 422);
+  const patched = await srv.api('PATCH', `/api/webhooks/${slack.json.webhook.id}`, { format: 'json' });
+  assert.equal(patched.json.webhook.format, 'json');
+});

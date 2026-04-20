@@ -28,6 +28,7 @@ export function registerWebhookRoutes(router, { store, clock, webhookPolicy, dis
       url: value.url,
       description: value.description ?? '',
       events: value.events ?? [],
+      format: value.format ?? 'json',
       active: value.active ?? true,
       secret: generateSecret(),
       createdAt: clock(),
