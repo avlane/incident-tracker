@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { SEVERITIES, SEVERITY_LABEL } from '../lib/labels.js';
+import { errorId, fieldProps, firstInvalid } from '../lib/a11y.js';
 import { emptyIncidentForm, fieldErrorsFromApi, toIncidentPayload, validateIncidentForm } from '../lib/form.js';
 
 export default function IncidentForm({ api, services, onCreated }) {
@@ -7,6 +8,7 @@ export default function IncidentForm({ api, services, onCreated }) {
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState(null);
+  const formRef = useRef(null);
 
   const set = (field) => (e) => setValues({ ...values, [field]: e.target.value });
 
@@ -22,7 +24,12 @@ export default function IncidentForm({ api, services, onCreated }) {
     e.preventDefault();
     const found = validateIncidentForm(values);
     setErrors(found);
-    if (Object.keys(found).length > 0) return;
+    if (Object.keys(found).length > 0) {
+      // move focus to the first problem so keyboard and screen reader users land on it
+      const field = firstInvalid(['title', 'summary', 'commander'], found);
+      formRef.current?.elements[field]?.focus();
+      return;
+    }
     setBusy(true);
     setFailure(null);
     try {
@@ -38,17 +45,25 @@ export default function IncidentForm({ api, services, onCreated }) {
   }
 
   return (
-    <form className="card" onSubmit={submit} noValidate>
+    <form className="card" ref={formRef} onSubmit={submit} noValidate>
       <h2>Open an incident</h2>
       <label>
         Title
-        <input value={values.title} onChange={set('title')} maxLength={140} />
-        {errors.title && <span className="error">{errors.title}</span>}
+        <input name="title" value={values.title} onChange={set('title')} maxLength={140} {...fieldProps('incident', 'title', errors)} />
+        {errors.title && (
+          <span className="error" id={errorId('incident', 'title')} role="alert">
+            {errors.title}
+          </span>
+        )}
       </label>
       <label>
         What is happening?
-        <textarea value={values.summary} onChange={set('summary')} rows={3} />
-        {errors.summary && <span className="error">{errors.summary}</span>}
+        <textarea name="summary" value={values.summary} onChange={set('summary')} rows={3} {...fieldProps('incident', 'summary', errors)} />
+        {errors.summary && (
+          <span className="error" id={errorId('incident', 'summary')} role="alert">
+            {errors.summary}
+          </span>
+        )}
       </label>
       <div className="row">
         <label>
@@ -63,8 +78,12 @@ export default function IncidentForm({ api, services, onCreated }) {
         </label>
         <label>
           Commander
-          <input value={values.commander} onChange={set('commander')} placeholder="defaults to whoever is on call" />
-          {errors.commander && <span className="error">{errors.commander}</span>}
+          <input name="commander" value={values.commander} onChange={set('commander')} placeholder="defaults to whoever is on call" {...fieldProps('incident', 'commander', errors)} />
+          {errors.commander && (
+            <span className="error" id={errorId('incident', 'commander')} role="alert">
+              {errors.commander}
+            </span>
+          )}
         </label>
       </div>
       {services.length > 0 && (
@@ -83,7 +102,11 @@ export default function IncidentForm({ api, services, onCreated }) {
           {errors.affected && <span className="error">{errors.affected}</span>}
         </fieldset>
       )}
-      {failure && <p className="error">{failure}</p>}
+      {failure && (
+        <p className="error" role="alert">
+          {failure}
+        </p>
+      )}
       <button type="submit" disabled={busy}>
         {busy ? 'Opening...' : 'Open incident'}
       </button>

@@ -103,7 +103,10 @@ export default function App() {
 
   return (
     <AuthContext value={{ user: session.user }}>
-      <main className="page">
+      <main className="page" id="main">
+        <a className="skip" href="#main">
+          Skip to content
+        </a>
         <header className="top">
           <h1>Incident tracker</h1>
           <nav>

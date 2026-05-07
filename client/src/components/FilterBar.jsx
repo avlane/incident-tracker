@@ -3,7 +3,7 @@ import { isFiltering } from '../lib/filters.js';
 
 function Chips({ field, options, labels, selected, dispatch }) {
   return (
-    <div className="chips" role="group" aria-label={field}>
+    <div className="chips" role="group" aria-label={`Filter by ${field}`}>
       {options.map((value) => (
         <button
           key={value}
@@ -24,6 +24,7 @@ export default function FilterBar({ filters, dispatch }) {
     <section className="filters">
       <input
         type="search"
+        aria-label="Search incidents"
         placeholder="Search title, summary and updates"
         value={filters.q}
         onChange={(e) => dispatch({ type: 'set_q', value: e.target.value })}

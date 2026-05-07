@@ -24,7 +24,11 @@ export default function Login({ api, notice, onSignedIn }) {
   return (
     <form className="card login" onSubmit={submit}>
       <h2>Sign in</h2>
-      {notice && <p className="note">{notice}</p>}
+      {notice && (
+        <p className="note" role="status">
+          {notice}
+        </p>
+      )}
       <label>
         Email
         <input type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required />
@@ -39,7 +43,11 @@ export default function Login({ api, notice, onSignedIn }) {
           required
         />
       </label>
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
       <button type="submit" disabled={busy}>
         {busy ? 'Signing in...' : 'Sign in'}
       </button>

@@ -5,7 +5,7 @@ export default function Timeline({ incident }) {
   // Newest first, like a status page.
   const entries = buildTimeline(incident).slice().reverse();
   return (
-    <ol className="timeline">
+    <ol className="timeline" aria-label="Incident timeline, newest first">
       {entries.map((entry) => (
         <li key={entry.id}>
           <div className="when">

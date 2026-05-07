@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { SEVERITIES, SEVERITY_LABEL, STATUS_LABEL } from '../lib/labels.js';
 import { allowedStatuses, emptyUpdateForm, toUpdatePayload } from '../lib/timeline.js';
 import { fieldErrorsFromApi } from '../lib/form.js';
+import { errorId, fieldProps } from '../lib/a11y.js';
 
 export default function UpdateForm({ api, incident, onUpdated }) {
   const [values, setValues] = useState(emptyUpdateForm(incident));
@@ -37,8 +38,12 @@ export default function UpdateForm({ api, incident, onUpdated }) {
       <h2>Post an update</h2>
       <label>
         Message
-        <textarea value={values.message} onChange={set('message')} rows={3} />
-        {errors.message && <span className="error">{errors.message}</span>}
+        <textarea value={values.message} onChange={set('message')} rows={3} {...fieldProps('update', 'message', errors)} />
+        {errors.message && (
+          <span className="error" id={errorId('update', 'message')} role="alert">
+            {errors.message}
+          </span>
+        )}
       </label>
       <div className="row">
         <label>
@@ -66,7 +71,11 @@ export default function UpdateForm({ api, incident, onUpdated }) {
           <input value={values.author} onChange={set('author')} />
         </label>
       </div>
-      {failure && <p className="error">{failure}</p>}
+      {failure && (
+        <p className="error" role="alert">
+          {failure}
+        </p>
+      )}
       <button type="submit" disabled={busy}>
         {busy ? 'Posting...' : 'Post update'}
       </button>
