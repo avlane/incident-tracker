@@ -103,8 +103,16 @@ export default function App() {
 
   return (
     <AuthContext value={{ user: session.user }}>
-      <main className="page" id="main">
-        <a className="skip" href="#main">
+      <main className="page">
+        {/* The app routes on the URL hash, so a plain #main link would navigate away. Move focus instead. */}
+        <a
+          className="skip"
+          href="#/"
+          onClick={(e) => {
+            e.preventDefault();
+            document.getElementById('content')?.focus();
+          }}
+        >
           Skip to content
         </a>
         <header className="top">
@@ -123,7 +131,9 @@ export default function App() {
             )}
           </nav>
         </header>
-        {body}
+        <div id="content" tabIndex={-1}>
+          {body}
+        </div>
       </main>
     </AuthContext>
   );

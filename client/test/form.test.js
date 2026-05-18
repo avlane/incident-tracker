@@ -52,3 +52,9 @@ test('routes round-trip', () => {
   assert.equal(hrefFor({ name: 'incident', id: 'INC-0003' }), '#/incidents/INC-0003');
   assert.equal(hrefFor({ name: 'list' }), '#/');
 });
+
+test('an in-page anchor like #main is not mistaken for a route', () => {
+  // Navigating to "#main" lands on the not-found page, which is why the skip
+  // link moves focus with a click handler instead of linking to it.
+  assert.deepEqual(parseHash('#main'), { name: 'not-found' });
+});
