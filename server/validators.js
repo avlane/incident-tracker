@@ -369,3 +369,28 @@ export function validateLabels(value, field = 'labels') {
   }
   return { value: cleaned, errors: [] };
 }
+
+export function validateTemplateInput(input, { partial = false } = {}) {
+  const errors = [];
+  if (input === null || typeof input !== 'object' || Array.isArray(input)) {
+    return { value: null, errors: [{ field: '', message: 'body must be an object' }] };
+  }
+  const value = {};
+  value.name = text(input, 'name', { required: !partial, max: 80 }, errors);
+  value.title = text(input, 'title', { max: 140 }, errors);
+  value.summary = text(input, 'summary', { max: 2000 }, errors);
+  if (input.severity !== undefined && input.severity !== null) {
+    if (SEVERITIES.includes(input.severity)) value.severity = input.severity;
+    else errors.push({ field: 'severity', message: `severity must be one of ${SEVERITIES.join(', ')}` });
+  } else if (input.severity === null) {
+    value.severity = null;
+  }
+  value.affected = affectedList(input, errors);
+  if (input.labels !== undefined) {
+    const labels = validateLabels(input.labels);
+    errors.push(...labels.errors);
+    if (labels.value) value.labels = labels.value;
+  }
+  for (const key of Object.keys(value)) if (value[key] === undefined) delete value[key];
+  return { value, errors };
+}

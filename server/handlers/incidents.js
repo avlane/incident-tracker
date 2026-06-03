@@ -1,6 +1,7 @@
 import { badRequest, conflict, notFound, unprocessable } from '../errors.js';
 import { canTransition, createIncident, formatIncidentId, incidentReducer } from '../incidents.js';
 import { LINK_KINDS, linkIncidents, unlinkIncidents } from '../links.js';
+import { applyTemplate } from '../templates.js';
 import { whoIsOnCall } from '../oncall.js';
 import { filterIncidents, parseFilters } from '../search.js';
 import { validateIncidentInput, validateLabels, validateUpdateInput } from '../validators.js';
@@ -27,7 +28,13 @@ export function registerIncidentRoutes(router, { store, clock }) {
   }
 
   router.post('/api/incidents', async (ctx) => {
-    const { value, errors } = validateIncidentInput(await ctx.readBody());
+    let body = await ctx.readBody();
+    if (body && typeof body === 'object' && body.templateId !== undefined) {
+      const template = store.get('templates', String(body.templateId));
+      if (!template) throw unprocessable([{ field: 'templateId', message: `unknown template ${body.templateId}` }]);
+      body = applyTemplate(template, body);
+    }
+    const { value, errors } = validateIncidentInput(body);
     if (errors.length > 0) throw unprocessable(errors);
     checkAffected(value.affected);
     const now = clock();
