@@ -20,6 +20,7 @@ export function toIncidentPayload(values) {
   const payload = { title: values.title.trim(), severity: values.severity };
   if (values.summary.trim()) payload.summary = values.summary.trim();
   if (values.commander.trim()) payload.commander = values.commander.trim();
+  if (values.templateId) payload.templateId = values.templateId;
   if (values.serviceIds.length > 0) {
     payload.affected = values.serviceIds.map((serviceId) => ({ serviceId, impact: 'degraded' }));
   }

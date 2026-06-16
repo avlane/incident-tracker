@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { SEVERITIES, SEVERITY_LABEL } from '../lib/labels.js';
 import { errorId, fieldProps, firstInvalid } from '../lib/a11y.js';
+import { applyTemplateToForm, templateById } from '../lib/templates.js';
 import { emptyIncidentForm, fieldErrorsFromApi, toIncidentPayload, validateIncidentForm } from '../lib/form.js';
 
 export default function IncidentForm({ api, services, onCreated }) {
@@ -9,6 +10,11 @@ export default function IncidentForm({ api, services, onCreated }) {
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState(null);
   const formRef = useRef(null);
+  const [templates, setTemplates] = useState([]);
+
+  useEffect(() => {
+    api.listTemplates().then((r) => setTemplates(r.templates), () => setTemplates([]));
+  }, [api]);
 
   const set = (field) => (e) => setValues({ ...values, [field]: e.target.value });
 
@@ -47,6 +53,22 @@ export default function IncidentForm({ api, services, onCreated }) {
   return (
     <form className="card" ref={formRef} onSubmit={submit} noValidate>
       <h2>Open an incident</h2>
+      {templates.length > 0 && (
+        <label>
+          Start from a template
+          <select
+            value={values.templateId ?? ''}
+            onChange={(e) => setValues(e.target.value ? applyTemplateToForm(values, templateById(templates, e.target.value)) : { ...values, templateId: undefined })}
+          >
+            <option value="">None</option>
+            {templates.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <label>
         Title
         <input name="title" value={values.title} onChange={set('title')} maxLength={140} {...fieldProps('incident', 'title', errors)} />

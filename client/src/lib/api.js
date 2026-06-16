@@ -64,6 +64,7 @@ export function createApi({
     getPostmortem: (id) => request('GET', `/api/incidents/${encodeURIComponent(id)}/postmortem`),
     getMetrics: (range) => request('GET', `/api/metrics${buildQuery(range)}`),
     getStatus: () => request('GET', '/api/status'),
+    listTemplates: () => request('GET', '/api/templates'),
     listServices: () => request('GET', '/api/services'),
     listOnCall: () => request('GET', '/api/oncall'),
   };
