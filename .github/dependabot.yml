@@ -1,0 +1,17 @@
+version: 2
+updates:
+  # The client is the only package with dependencies; the API has none.
+  - package-ecosystem: npm
+    directory: /client
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      react:
+        patterns: [react, react-dom]
+      vite:
+        patterns: [vite, "@vitejs/*"]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
