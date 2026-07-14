@@ -3,6 +3,7 @@ import { bearerToken, clientIp, parseCookies, readJson, sendJson, sendText } fro
 import { createRateLimiter } from './ratelimit.js';
 import { accessLogLine, requestIdFor } from './requestlog.js';
 import { createAuditLog } from './audit.js';
+import { createTtlCache } from './cache.js';
 import { createDispatcher } from './dispatcher.js';
 import { createAuthService, hasRole } from './auth.js';
 import { requiredRole } from './policy.js';
@@ -62,6 +63,8 @@ export function createApp({
   accessLog = false,
   // Absolute URL of the client, used for links in the Atom feed.
   publicUrl = 'http://localhost:3000',
+  // How long the computed status page is reused (0 turns the cache off).
+  statusCacheMs = 5_000,
 } = {}) {
   const router = createRouter();
   const auth = createAuthService({ store, clock, hashParams });
@@ -82,7 +85,8 @@ export function createApp({
   // Expired sessions are also ignored when presented, this just keeps them from piling up.
   const sessionSweeper = setInterval(() => auth.purgeExpired(), 3_600_000);
   sessionSweeper.unref();
-  const deps = { store, clock, logger, auth, limiters, auditLog, webhookPolicy, dispatcher, trustProxy, publicUrl };
+  const statusCache = createTtlCache({ ttlMs: statusCacheMs });
+  const deps = { store, clock, logger, auth, limiters, auditLog, webhookPolicy, dispatcher, trustProxy, publicUrl, statusCache };
   for (const register of modules) register(router, deps);
 
   // Handlers return { status?, body?, text?, contentType?, headers? }.
@@ -131,6 +135,8 @@ export function createApp({
       },
     };
     const result = (await found.handler(ctx)) ?? {};
+    // Any write may change what the status page shows.
+    if (req.method !== 'GET' && req.method !== 'HEAD') statusCache.clear();
     const status = result.status ?? 200;
     if (status === 204) {
       res.writeHead(204, result.headers);
