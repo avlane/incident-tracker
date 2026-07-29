@@ -12,6 +12,7 @@ test('defaults', () => {
     staticDir: 'client/dist',
     store: 'json',
     dbFile: 'data/incidents.db',
+    busyTimeoutMs: 5000,
     dataFile: 'data/incidents.json',
   });
 });

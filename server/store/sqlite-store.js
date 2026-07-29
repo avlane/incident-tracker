@@ -11,9 +11,13 @@ import { migrate } from './migrations.js';
 // Documents are stored as JSON text in one table. That keeps the two stores
 // interchangeable; it gives up SQL-level querying in exchange.
 
-export function createSqliteStore({ DatabaseSync, path = ':memory:' }) {
+// busyTimeoutMs: how long a write waits for another connection's lock (the
+// server and `cli.js prune` can both have the file open) before failing with
+// "database is locked".
+export function createSqliteStore({ DatabaseSync, path = ':memory:', busyTimeoutMs = 5000 }) {
   if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });
   const db = new DatabaseSync(path);
+  db.exec(`PRAGMA busy_timeout = ${Number(busyTimeoutMs)}`);
   if (path !== ':memory:') {
     db.exec('PRAGMA journal_mode = WAL');
     db.exec('PRAGMA synchronous = NORMAL');
@@ -102,6 +106,9 @@ export function createSqliteStore({ DatabaseSync, path = ':memory:' }) {
     },
 
     close() {
+      // Fold the write-ahead log back into the main file so a copy of just
+      // the .db file is complete.
+      if (path !== ':memory:') db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
       db.close();
     },
   };

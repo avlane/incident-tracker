@@ -7,7 +7,7 @@ export async function openStore(config = {}) {
   if (config.store === 'sqlite') {
     const { DatabaseSync } = await import('node:sqlite');
     const { createSqliteStore } = await import('./sqlite-store.js');
-    return createSqliteStore({ DatabaseSync, path: config.dbFile ?? 'data/incidents.db' });
+    return createSqliteStore({ DatabaseSync, path: config.dbFile ?? 'data/incidents.db', busyTimeoutMs: config.busyTimeoutMs });
   }
   return createJsonStore({ path: config.dataFile ?? null });
 }

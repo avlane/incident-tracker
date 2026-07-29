@@ -20,6 +20,7 @@ export function loadConfig(env = process.env) {
     staticDir: env.STATIC_DIR ?? 'client/dist',
     store,
     dbFile: env.DB_FILE ?? 'data/incidents.db',
+    busyTimeoutMs: Number(env.DB_BUSY_TIMEOUT_MS ?? 5000),
     dataFile: env.DATA_FILE ?? 'data/incidents.json',
   };
 }
