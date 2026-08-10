@@ -19,7 +19,7 @@ separate package under `client/` (React and Vite).
 
 ## Running the API
 
-Needs Node 18 or newer (22.5 or newer for the SQLite store).
+Needs Node 20 or newer (22.5 or newer for the SQLite store). Node 18 reached end of life in April 2025 and is no longer supported.
 
 ```
 npm start
@@ -54,8 +54,8 @@ STORE=sqlite npm start
 On Node 22.5 to 22.12, run the server with the flag yourself
 (`STORE=sqlite node --experimental-sqlite server/index.js`); the SQLite tests
 skip themselves when `node:sqlite` can't be loaded, and
-`node --experimental-sqlite --test` runs them on those versions. On Node 18
-and 20 use the default JSON store.
+`node --experimental-sqlite --test` runs them on those versions. On Node 20
+use the default JSON store.
 
 Both stores implement the same small interface (`list`, `get`, `put`, `remove`,
 `nextSeq`, `transaction`) and one shared contract test runs against both. The
@@ -190,7 +190,7 @@ npm run dev
 ```
 
 Vite serves the UI on port 5173 and proxies `/api` to the API on port 3000.
-Vite 7 needs Node 20.19 or newer (the API itself still runs on Node 18)..
+Vite 7 needs Node 20.19 or newer.
 
 ## License
 

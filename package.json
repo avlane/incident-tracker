@@ -7,7 +7,7 @@
   "license": "MIT",
   "author": "Avery Lane",
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "scripts": {
     "start": "node server/index.js",
