@@ -9,13 +9,23 @@ separate package under `client/` (React and Vite).
 
 ## Tests
 
-- The server code, the store, the router and the domain logic are covered by
-  tests that run with `node --test`. Those tests start the real HTTP server on
-  an ephemeral port and call it with `fetch`, so the request path is
-  exercised end to end.
-- The client's plain JavaScript modules (`client/src/lib/*.js`: the API
-  wrapper, form and filter logic, routing, timeline helpers) are tested with
-  `node --test` too.
+- `npm test` runs 365 tests with `node --test`, none skipped, none failing.
+  Most of them start the real HTTP server on an ephemeral port and call it with
+  `fetch`, so routing, auth, rate limiting, audit, webhooks and the stores are
+  exercised through the same request path a real client uses. The API has no
+  runtime dependencies, so nothing needed installing.
+- The same store contract test runs against the JSON store and against
+  `node:sqlite`, including transactions, nested rollback, import/export and
+  schema migrations.
+- Webhook delivery is tested against a stubbed `fetch` (signatures, retries,
+  timeouts, private-address refusal).
+- The client's plain JavaScript modules (`client/src/lib/*.js`: API wrapper,
+  forms, filters, routing, timeline, metrics, uptime and so on) are tested with
+  `node --test` too; they have no React in them.
+- The real entry points were smoke tested by hand: `server/cli.js create-user`
+  and `list-users`, `server/index.js` on the JSON store and on SQLite
+  (`migrate-store`, login, opening an incident, the status page, the postmortem
+  Markdown, `/healthz`), `prune`, and a clean exit on SIGTERM.
 
 ## Running the API
 

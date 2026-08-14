@@ -9,7 +9,7 @@ const quietLogger = () => ({ lines: [], info(l) { this.lines.push(l); }, warn(l)
 
 function fakes() {
   const calls = [];
-  const server = createServer((req, res) => res.end('ok'));
+  const server = createServer((_req, res) => res.end('ok'));
   const store = { close: () => calls.push('store.close') };
   const app = { idle: async () => calls.push('app.idle'), close: () => calls.push('app.close') };
   return { calls, server, store, app };
