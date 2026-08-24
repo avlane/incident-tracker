@@ -200,7 +200,40 @@ npm run dev
 ```
 
 Vite serves the UI on port 5173 and proxies `/api` to the API on port 3000.
-Vite 7 needs Node 20.19 or newer.
+For a single-process setup, `npm run build` in `client/` writes `client/dist`,
+which the API serves itself when that directory exists (`STATIC_DIR` changes
+the location). Vite 7 needs Node 20.19 or newer.
+
+### The screens
+
+- **Sign in.** A small card with email and password. If a session expires
+  while you are using the app you are returned here with a note saying so.
+- **Incidents** (the home page). An "On call" card lists each rotation, who has
+  the pager until when, and who is the backup. Responders and admins see an
+  "Open an incident" form below it: an optional template picker, title, a
+  description, severity, commander (blank means whoever is on call) and
+  checkboxes for the affected services. Underneath are a search box and
+  severity and status filter chips, then one row per incident with its id,
+  title, severity and status badges, how long ago it opened and how long it
+  lasted. Viewers see everything except the form.
+- **One incident.** A header with the badges, how long it has been open (or how
+  long it took), who leads it and what it affects. Responders get a "Post an
+  update" form whose status choices follow the rules (a resolved incident
+  offers only reopening). The timeline below runs newest first, with the time of
+  each update, how long after the start it landed, and a note when severity
+  changed. Once an incident is resolved, a postmortem editor appears (root
+  cause, detection, what went well and poorly, and a list of action items with
+  owner and due date), and a link downloads the Markdown draft.
+- **Metrics.** A period picker, four headline figures (incidents, median time to
+  respond, median time to resolve, resolved), counts by severity, a table of
+  incidents opened and resolved per week with small bars, and per-service
+  totals.
+- **Public status page** (works without signing in). A coloured banner with the
+  overall state, any active incident with its public updates, maintenance in
+  progress, then one card per service: its state, a strip of 90 small
+  day-by-day bars with the uptime percentage, and each component with its own
+  state. Below are upcoming maintenance and incidents resolved in the last two
+  weeks. The page refreshes itself every 30 seconds.
 
 ## License
 
